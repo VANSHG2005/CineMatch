@@ -52,7 +52,7 @@ MODEL_URLS = {
     "tmdb_movies.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_movies.pkl?download=true",
     "tmdb_similarity.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_similarity.pkl?download=true",
     "tmdb_tv_series.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_tv_shows.pkl?download=true",
-    "tv_similarity.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_tv_similarity.pkl?download=true"
+    "tmdb_tv_similarity.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_tv_similarity.pkl?download=true"
 }
 
 # --- Download all necessary model files ---
@@ -65,7 +65,7 @@ try:
     movie_df = joblib.load('model/tmdb_movies.pkl')
     movie_similarity = joblib.load('model/tmdb_similarity.pkl')
     tv_df = joblib.load('model/tmdb_tv_series.pkl')
-    tv_similarity = joblib.load('model/tv_similarity.pkl')
+    tv_similarity = joblib.load('model/tmdb_tv_similarity.pkl')
     print("All model files loaded successfully.")
 except FileNotFoundError as e:
     print(f"FATAL ERROR: Could not load model file. {e}. Ensure files were downloaded.")
