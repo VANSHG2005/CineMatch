@@ -1,0 +1,24 @@
+# 1. Start with a lean official Python base image
+FROM python:3.10-slim
+
+# 2. Set the working directory inside the container
+WORKDIR /app
+
+# 3. Copy the requirements file into the container
+# This is done first to leverage Docker's caching. If this file doesn't change,
+# Docker won't re-install all the packages on every build, making deploys faster.
+COPY requirements.txt .
+
+# 4. Install the Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 5. Copy your entire project code into the container
+# This includes app.py, the /model, /templates, and /static folders.
+COPY . .
+
+# 6. Expose the port that Hugging Face expects (7860)
+EXPOSE 7860
+
+# 7. Define the command to run your application using Gunicorn
+# This tells Gunicorn to listen on all network interfaces on the correct port.
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "app:app"]
