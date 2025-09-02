@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="search-results-container">
+    <h1 class="main-title">
+        Search Results for <span class="query-text">"{{ query }}"</span>
+    </h1>
+
+    {% if movies or tv_shows %}
+        {% set default_tv = url_for('static', filename='images/default-tv.png') %}
+        
+        {% if movies %}
+            <section class="content-section">
+                <h2 class="section-title">Movies</h2>
+                <div class="scrolling-row">
+                    {% for movie in movies %}
+                    <div class="content-card">
+                        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}">
+                            <img src="{{ img_url }}{{ movie.poster_path }}" 
+                                 alt="{{ movie.title }}"
+                                 class="poster-image"
+                                 onerror="this.src='{{ default_tv }}'">
+                            <div class="content-title">{{ movie.title }}</div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+        {% if tv_shows %}
+            <section class="content-section">
+                <h2 class="section-title">TV Shows</h2>
+                <div class="scrolling-row">
+                    {% for tv in tv_shows %}
+                    <div class="content-card">
+                        <a href="{{ url_for('tv_detail', tv_id=tv.id) }}">
+                            <img src="{{ img_url }}{{ tv.poster_path }}" 
+                                 alt="{{ tv.name }}"
+                                 class="poster-image"
+                                 onerror="this.src='{{ default_tv }}'">
+                            <div class="content-title">{{ tv.name }}</div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+    {% else %}
+        <div class="no-results">
+            <h2>No Results Found</h2>
+            <p>Sorry, we couldn't find any movies or TV shows matching "{{ query }}".</p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .search-results-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+        color: var(--text-color);
+    }
+    
+    .main-title {
+        text-align: center;
+        margin-bottom: 40px;
+        font-size: 2.5rem;
+        font-weight: 600;
+    }
+
+    .query-text {
+        color: #e50914; /* Using consistent accent color */
+    }
+
+    .content-section {
+        margin-bottom: 3rem;
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+        margin: 30px 0 15px;
+        color: var(--text-color);
+        border-left: 4px solid #e50914;
+        padding-left: 10px;
+    }
+    
+    .scrolling-row {
+        display: flex;
+        overflow-x: auto;
+        gap: 15px;
+        padding: 10px 0;
+        scrollbar-width: thin;
+    }
+    
+    .scrolling-row::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .scrolling-row::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+    }
+    
+    .scrolling-row::-webkit-scrollbar-thumb {
+        background-color: var(--scrollbar-thumb);
+        border-radius: 20px;
+    }
+    
+    .content-card {
+        flex: 0 0 auto;
+        width: 150px;
+        transition: transform 0.3s ease;
+    }
+    
+    .content-card a {
+        text-decoration: none;
+    }
+
+    .content-card:hover {
+        transform: scale(1.05);
+    }
+    
+    .poster-image {
+        width: 100%;
+        border-radius: 8px;
+        aspect-ratio: 2/3;
+        object-fit: cover;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        background-color: var(--card-bg, #1e1e1e);
+    }
+    
+    .content-title {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text-color);
+        text-align: center;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 50px 20px;
+    }
+
+    @media (max-width: 768px) {
+        .main-title {
+            font-size: 2rem;
+        }
+        .content-card {
+            width: 120px;
+        }
+        .section-title {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}

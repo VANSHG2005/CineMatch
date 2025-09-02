@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container watchlist-container">
+    <h1 class="my-4">My Watchlist</h1>
+    
+    {% if not items %}
+    <div class="empty-watchlist">
+        <i class="fas fa-bookmark fa-4x mb-3 d0"></i>
+        <h3 class="d0">Your watchlist is empty</h3>
+        <p class="d0">Start adding movies and TV shows to your watchlist!</p>
+    </div>
+    {% else %}
+    <div class="row">
+        {% for item in items %}
+        <div class="col-md-3 col-sm-4 col-6 mb-4">
+            <div class="watchlist-card">
+                <a href="{% if item.item_type == 'movie' %}{{ url_for('movie_detail', movie_id=item.item_id) }}{% else %}{{ url_for('tv_detail', tv_id=item.item_id) }}{% endif %}">
+                    {% if item.poster_path %}
+                    <img src="{{ img_url }}{{ item.poster_path }}" class="watchlist-poster" alt="{{ item.title }}">
+                    {% else %}
+                    <div class="no-poster">
+                        <i class="fas fa-{% if item.item_type == 'movie' %}film{% else %}tv{% endif %}"></i>
+                    </div>
+                    {% endif %}
+                </a>
+                <div class="watchlist-info">
+                    <h5 class="watchlist-title">{{ item.title }}</h5>
+                    <div class="watchlist-actions">
+                        <span class="badge bg-{% if item.item_type == 'movie' %}primary{% else %}success{% endif %}">
+                            {{ item.item_type|upper }}
+                        </span>
+                        <button class="btn btn-sm btn-danger remove-btn" 
+                                data-item-id="{{ item.id }}"
+                                onclick="removeFromWatchlist(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Toast Notification -->
+<div id="watchlistToast" class="toast bg-body" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header bg-body">
+        <strong class="me-auto">Watchlist</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+    <div class="toast-body bg-body">
+        <span id="toastMessage"></span>
+    </div>
+</div>
+
+<script>
+function removeFromWatchlist(button) {
+    const itemId = button.dataset.itemId;
+    
+    if (confirm('Are you sure you want to remove this from your watchlist?')) {
+        fetch('/remove_from_watchlist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                watchlist_item_id: itemId 
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const toast = new bootstrap.Toast(document.getElementById('watchlistToast'));
+                document.getElementById('toastMessage').textContent = 'Item removed successfully';
+                toast.show();
+                
+                setTimeout(() => {
+                    button.closest('.col-md-3').remove();
+                    
+                    if (document.querySelectorAll('.watchlist-card').length === 0) {
+                        location.reload();
+                    }
+                }, 500);
+            } else {
+                throw new Error(data.message || 'Failed to remove item');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(error.message);
+        });
+    }
+}
+</script>
+
+<style>
+.watchlist-container {
+    min-height: 70vh;
+}
+
+.empty-watchlist {
+    text-align: center;
+    padding: 3rem;
+    color: var(--secondary-color);
+}
+
+.watchlist-card {
+    position: relative;
+    transition: transform 0.3s;
+    margin-bottom: 1rem;
+}
+
+.watchlist-card:hover {
+    transform: translateY(-5px);
+}
+
+.watchlist-poster {
+    width: 100%;
+    border-radius: 8px;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.no-poster {
+    width: 100%;
+    aspect-ratio: 2/3;
+    background-color: var(--card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: var(--secondary-color);
+    font-size: 2rem;
+}
+
+.watchlist-info {
+    margin-top: 0.5rem;
+}
+
+.watchlist-title {
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.3rem;
+}
+
+.watchlist-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.remove-btn {
+    padding: 0.1rem 0.4rem;
+    transition: all 0.2s;
+}
+
+.remove-btn:hover {
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+    .watchlist-title {
+        font-size: 0.9rem;
+    }
+    
+    .watchlist-actions {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+}
+
+.toast {
+    background-color: var(--toast-bg, #fff) !important;
+    color: var(--toast-color, #000) !important;
+}
+
+.toast-header {
+    background-color: var(--toast-bg, #fff) !important;
+    color: var(--toast-color, #000) !important;
+    border-bottom-color: var(--toast-border, #dee2e6) !important;
+}
+
+[data-bs-theme="dark"] .toast {
+    --toast-bg: #000;
+    --toast-color: #fff;
+    --toast-border: #444;
+}
+</style>
+{% endblock %}

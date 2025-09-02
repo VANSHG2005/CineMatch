@@ -1,0 +1,7 @@
+.env
+instance/
+.vscode/
+users.db
+__pycache__/
+*.pyc
+.venv/

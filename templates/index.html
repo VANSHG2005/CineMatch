@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="genre-browse-container">
+
+    <section class="get-recommendation">
+        <h2 class="section-title">Get Recommendation</h2>
+        
+        <!-- Search Bar for Recommendations -->
+        <div class="recommendation-search-container">
+            <form class="recommendation-search-form" method="POST" action="/recommend">
+                <div class="search-input-group">
+                    <input class="recommendation-search-input" type="text" name="movie" 
+                           placeholder="Search for movies or TV shows..." required>
+                    <select class="recommendation-search-type" name="content_type">
+                        <option value="movie">Movies</option>
+                        <option value="tv">TV Shows</option>
+                    </select>
+                    <button class="recommendation-search-btn" type="submit">
+                        <i class="fas fa-search"></i> Get Recommendations
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+    
+    <!-- Movies Section -->
+    <section class="movies-section">
+        <h2 class="section-title">Movies</h2>
+        <div class="scrolling-row">
+            {% for movie in movies %}
+            {% set default_tv = url_for('static', filename='images/default-tv.png') %}
+            <div class="content-card">
+                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}">
+                    <img src="{{ img_url }}{{ movie.poster_path }}" 
+                         alt="{{ movie.title }}"
+                         class="poster-image"
+                         onerror="this.src='{{ default_tv }}'">
+                    <div class="content-title">{{ movie.title }}</div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    
+    <!-- TV Shows Section -->
+    <section class="tv-section">
+        <h2 class="section-title">TV Shows</h2>
+        <div class="scrolling-row">
+            {% for tv in tv_shows %}
+            {% set default_tv = url_for('static', filename='images/default-tv.png') %}
+            <div class="content-card">
+                <a href="{{ url_for('tv_detail', tv_id=tv.id) }}">
+                    <img src="{{ img_url }}{{ tv.poster_path }}" 
+                         alt="{{ tv.name }}"
+                         class="poster-image"
+                         onerror="this.src='{{ default_tv }}'">
+                    <div class="content-title">{{ tv.name }}</div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<style>
+    .genre-browse-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .section-title {
+        font-size: 1.8rem;
+        margin: 30px 0 15px;
+        color: var(--text-color);
+        border-left: 4px solid #e50914;
+        padding-left: 10px;
+    }
+    
+    .scrolling-row {
+        display: flex;
+        overflow-x: auto;
+        gap: 15px;
+        padding: 10px 0;
+        scrollbar-width: thin;
+    }
+    
+    .scrolling-row::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .scrolling-row::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+    }
+    
+    .scrolling-row::-webkit-scrollbar-thumb {
+        background-color: var(--scrollbar-thumb);
+        border-radius: 20px;
+    }
+    
+    .content-card {
+        flex: 0 0 auto;
+        width: 150px;
+        transition: transform 0.3s ease;
+    }
+    
+    .content-card:hover {
+        transform: scale(1.05);
+    }
+    
+    .poster-image {
+        width: 100%;
+        border-radius: 8px;
+        aspect-ratio: 2/3;
+        object-fit: cover;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .content-title {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text-color);
+    }
+    
+    /* Recommendation Search Styles */
+    .recommendation-search-container {
+        margin: 20px 0 40px;
+        display: flex;
+        justify-content: center;
+    }
+    
+    .recommendation-search-form {
+        width: 100%;
+        max-width: 700px;
+    }
+    
+    .search-input-group {
+        display: flex;
+        background: rgba(128, 128, 128, 0.1);
+        border-radius: 8px;
+        padding: 5px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+        border: 1px solid rgba(128, 128, 128, 0.3);
+    }
+    
+    .search-input-group:focus-within {
+        background: rgba(128, 128, 128, 0.15);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        border-color: #e50914;
+    }
+    
+    .recommendation-search-input {
+        flex: 1;
+        padding: 12px 16px;
+        border: none;
+        background: transparent;
+        color: var(--text-color);
+        font-size: 1rem;
+        outline: none;
+    }
+    
+    .recommendation-search-input::placeholder {
+        color: rgba(128, 128, 128, 0.7);
+    }
+    
+    .recommendation-search-type {
+        padding: 0 16px;
+        border: none;
+        background: rgba(128, 128, 128, 0.1);
+        color: var(--text-color);
+        border-radius: 4px;
+        margin: 0 8px;
+        cursor: pointer;
+        outline: none;
+    }
+    
+    /* Style dropdown options for both themes */
+    .recommendation-search-type option {
+        background: var(--bg-color);
+        color: var(--text-color);
+    }
+    
+    .recommendation-search-btn {
+        padding: 12px 20px;
+        background: #e50914;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .recommendation-search-btn:hover {
+        background: #f40612;
+    }
+    
+    @media (max-width: 768px) {
+        .content-card {
+            width: 120px;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+        }
+        
+        .search-input-group {
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .recommendation-search-type {
+            margin: 0;
+            padding: 10px 16px;
+        }
+    }
+</style>
+{% endblock %}
