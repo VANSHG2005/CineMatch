@@ -21,11 +21,56 @@ app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(24)
 
 load_dotenv()
 
-# Load precomputed data
-movie_df = joblib.load('model/tmdb_movies.pkl')
-movie_similarity = joblib.load('model/tmdb_similarity.pkl')
-tv_df = joblib.load('model/tmdb_tv_shows.pkl')
-tv_similarity = joblib.load('model/tmdb_tv_similarity.pkl')
+
+# Create a 'model' directory if it doesn't exist
+if not os.path.exists('model'):
+    os.makedirs('model')
+
+# --- Helper function to download a file ---
+def download_file(url, destination):
+    if not os.path.exists(destination):
+        print(f"Downloading {destination} from {url}...")
+        try:
+            response = requests.get(url, stream=True)
+            response.raise_for_status()  # Raise an exception for bad status codes
+            with open(destination, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            print(f"Successfully downloaded {destination}")
+        except requests.exceptions.RequestException as e:
+            print(f"Error downloading {destination}: {e}")
+            # If a file fails to download, you might want to exit or handle the error
+            if os.path.exists(destination):
+                os.remove(destination) # Clean up partial download
+            return False
+    else:
+        print(f"{destination} already exists. Skipping download.")
+    return True
+
+# --- URLs for your model files (REPLACE THESE WITH YOUR ACTUAL URLS) ---
+MODEL_URLS = {
+    "tmdb_movies.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_movies.pkl?download=true",
+    "tmdb_similarity.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_similarity.pkl?download=true",
+    "tmdb_tv_series.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_tv_shows.pkl?download=true",
+    "tv_similarity.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_tv_similarity.pkl?download=true"
+}
+
+# --- Download all necessary model files ---
+for filename, url in MODEL_URLS.items():
+    destination_path = os.path.join('model', filename)
+    download_file(url, destination_path)
+
+# --- Load the data (now from the locally downloaded files) ---
+try:
+    movie_df = joblib.load('model/tmdb_movies.pkl')
+    movie_similarity = joblib.load('model/tmdb_similarity.pkl')
+    tv_df = joblib.load('model/tmdb_tv_series.pkl')
+    tv_similarity = joblib.load('model/tv_similarity.pkl')
+    print("All model files loaded successfully.")
+except FileNotFoundError as e:
+    print(f"FATAL ERROR: Could not load model file. {e}. Ensure files were downloaded.")
+    # You might want to exit the application if models can't be loaded
+    exit()
 
 TMDB_API_KEY = os.getenv('TMDB_API_KEY')
 TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/w500"
