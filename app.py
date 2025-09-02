@@ -22,18 +22,10 @@ app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(24)
 load_dotenv()
 
 # Load precomputed data
-@lru_cache(maxsize=None)
-def get_movie_data():
-    df = joblib.load('model/tmdb_movies.pkl')
-    similarity = joblib.load('model/tmdb_similarity.pkl')
-    return df, similarity
-
-@lru_cache(maxsize=None)
-def get_tv_data():
-    df = joblib.load('model/tmdb_tv_series.pkl')
-    similarity = joblib.load('model/tmdb_tv_similarity.pkl')
-    return df, similarity
-
+movie_df = joblib.load('model/tmdb_movies.pkl')
+movie_similarity = joblib.load('model/tmdb_similarity.pkl')
+tv_df = joblib.load('model/tmdb_tv_shows.pkl')
+tv_similarity = joblib.load('model/tmdb_tv_similarity.pkl')
 
 TMDB_API_KEY = os.getenv('TMDB_API_KEY')
 TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/w500"
@@ -46,7 +38,7 @@ else:
 # Configure login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login' 
+login_manager.login_view = 'login'  # Specify the login view
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
 
@@ -78,7 +70,6 @@ def get_best_match(title, choices):
     return match[0] if match else None
 
 def get_movie_recommendations(movie_name):
-    movie_df, movie_similarity = get_movie_data()
     titles = movie_df["title"].tolist()
     closest_match = get_best_match(movie_name, titles)
 
@@ -115,10 +106,11 @@ def get_movie_recommendations(movie_name):
     return searched_movie, recs
 
 def get_tv_recommendations(tv_name):
-    tv_df, tv_similarity = get_tv_data() 
     try:
+        # Check what columns actually exist in your DataFrame
         print("Available columns in tv_df:", tv_df.columns.tolist())
         
+        # Adjust based on actual column names
         title_column = "name" if "name" in tv_df.columns else "title"
         titles = tv_df[title_column].tolist()
         
@@ -165,7 +157,7 @@ def fetch_movies_by_category(category, genre_id=None):
               f"https://api.themoviedb.org/3/discover/movie?with_genres={genre_id}"
         params = {"api_key": TMDB_API_KEY}
         response = requests.get(url, params=params)
-        response.raise_for_status() 
+        response.raise_for_status()  # Raises an HTTPError for bad responses
         return response.json().get("results", [])[:20]
     except requests.RequestException as e:
         print(f"Error fetching movies for {category}: {e}")
@@ -221,10 +213,11 @@ def get_movie_info(movie_id):
         url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US"
         response = requests.get(url)
         if response.status_code != 200:
-            return None, [] 
+            return None, []  # Return tuple even if failed
 
         movie_data = response.json()
 
+        # Get related (franchise) movies
         collection = movie_data.get("belongs_to_collection")
         related_movies = []
         if collection:
@@ -233,8 +226,10 @@ def get_movie_info(movie_id):
             coll_response = requests.get(coll_url)
             if coll_response.status_code == 200:
                 related_movies = coll_response.json().get("parts", [])
+                # Remove the original movie from related list
                 related_movies = [m for m in related_movies if m["id"] != movie_id]
 
+        # Convert genre list
         movie_data["genres"] = [g["name"] for g in movie_data.get("genres", [])]
 
         return movie_data, related_movies
@@ -341,7 +336,7 @@ def get_genres_dict():
             10751: {'name': 'Family', 'tv_match': [10751]},
             14: {'name': 'Fantasy', 'tv_match': [10765]},
             36: {'name': 'History', 'tv_match': []},
-            27: {'name': 'Horror', 'tv_match': [9648]},
+            27: {'name': 'Horror', 'tv_match': [9648]},  # Horror often falls under Mystery in TV
             10402: {'name': 'Music', 'tv_match': []},
             9648: {'name': 'Mystery', 'tv_match': [9648]},
             10749: {'name': 'Romance', 'tv_match': [10749]},
@@ -360,7 +355,7 @@ def get_genres_dict():
             18: {'name': 'Drama', 'movie_match': [18]},
             10751: {'name': 'Family', 'movie_match': [10751]},
             10762: {'name': 'Kids', 'movie_match': []},
-            9648: {'name': 'Mystery', 'movie_match': [9648, 27, 53]},
+            9648: {'name': 'Mystery', 'movie_match': [9648, 27, 53]},  # Includes Horror and Thriller
             10763: {'name': 'News', 'movie_match': []},
             10764: {'name': 'Reality', 'movie_match': []},
             10765: {'name': 'Sci-Fi & Fantasy', 'movie_match': [878, 14]},
@@ -374,11 +369,9 @@ def get_genres_dict():
 @app.route('/')
 def index():
     # Get a random selection of movies
-    movie_df, movie_similarity = get_movie_data()
     all_movies = movie_df.sample(min(20, len(movie_df))).to_dict('records')
     
     # Get a random selection of TV shows
-    tv_df, tv_similarity = get_tv_data()
     all_tv_shows = tv_df.sample(min(20, len(tv_df))).to_dict('records')
     
     return render_template("index.html",
@@ -487,7 +480,7 @@ def movie_detail(movie_id):
     # Get ML-based recommendations
     ml_recommendations = []
     if movie_details.get('title'):
-        movie_df, movie_similarity = get_movie_data()
+        # Try to find the movie in our dataset
         titles = movie_df["title"].tolist()
         closest_match = get_best_match(movie_details['title'], titles)
         
@@ -545,8 +538,7 @@ def tv_detail(tv_id):
     # Get ML-based recommendations
     ml_recommendations = []
     if tv_details.get('name'):
-        tv_df, tv_similarity = get_tv_data()
-
+        # Try to find the TV show in our dataset
         title_column = "name" if "name" in tv_df.columns else "title"
         titles = tv_df[title_column].tolist()
         closest_match = get_best_match(tv_details['name'], titles)
@@ -555,9 +547,10 @@ def tv_detail(tv_id):
             index_of_tv = tv_df[tv_df[title_column] == closest_match].index.values[0]
             similarity_scores = list(enumerate(tv_similarity[index_of_tv]))
             sorted_scores = sorted(similarity_scores, key=lambda x: x[1], reverse=True)
-
+            
+            # Get top 6 ML recommendations
             titles_seen = set()
-            for i, _ in sorted_scores[1:12]: 
+            for i, _ in sorted_scores[1:12]:  # Get top 6 similar
                 tv = tv_df.iloc[i]
                 title = tv[title_column]
                 if title == tv_details['name'] or title in titles_seen:
@@ -857,8 +850,8 @@ def login_google():
 # Google callback
 @app.route('/login/google/callback')
 def auth_callback():
-    print("Callback route accessed") 
-    print("Request args:", request.args)
+    print("Callback route accessed")  # Debug print
+    print("Request args:", request.args)  # Debug print
     # Get authorization code
     code = request.args.get("code")
     
@@ -1013,12 +1006,12 @@ def signup():
         
         # Create user (you'll need to add password hashing)
         user = User(
-            id_=str(uuid.uuid4()), 
+            id_=str(uuid.uuid4()),  # Generate a unique ID
             name=name,
             email=email,
-            profile_pic='https://via.placeholder.com/150' 
+            profile_pic='https://via.placeholder.com/150'  # Default profile picture
         )
-        user.set_password(password) 
+        user.set_password(password)  # You'll need to add this method to User class
         db.session.add(user)
         db.session.commit()
         
@@ -1028,7 +1021,7 @@ def signup():
     return render_template('signup.html')
 
 @app.route('/profile')
-@login_required 
+@login_required  # Ensures only logged-in users can access
 def profile():
     # Get the current user's data
     user_data = {
@@ -1045,7 +1038,7 @@ class WatchlistItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
     item_id = db.Column(db.Integer, nullable=False)
-    item_type = db.Column(db.String(10), nullable=False) 
+    item_type = db.Column(db.String(10), nullable=False)  # 'movie' or 'tv'
     title = db.Column(db.String(200), nullable=False)
     poster_path = db.Column(db.String(200))
     added_on = db.Column(db.DateTime, default=datetime.utcnow)
@@ -1158,7 +1151,7 @@ def search():
     
     return render_template('search.html', 
                          query=query, 
-                         movies=movie_results[:12], 
+                         movies=movie_results[:12],  # Limit to 12 results each
                          tv_shows=tv_results[:12],
                          img_url=TMDB_IMAGE_URL)
 
