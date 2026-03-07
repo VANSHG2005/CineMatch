@@ -12,7 +12,9 @@ class Config:
     if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     
-    SQLALCHEMY_DATABASE_URI = DATABASE_URL or 'sqlite:///instance/users.db'
+    # Use absolute path for SQLite
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL or f'sqlite:///{os.path.join(basedir, "instance", "users.db")}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Cookie settings for cross-site auth (Vercel + Render)

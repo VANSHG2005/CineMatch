@@ -11,8 +11,13 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
+    # Ensure instance folder exists for SQLite
+    try:
+        os.makedirs(app.instance_path, exist_ok=True)
+    except Exception as e:
+        print(f"Error creating instance path: {e}")
+    
     # Enhanced CORS Configuration
-    # Using a more permissive setup for production troubleshooting
     CORS(app, 
          supports_credentials=True, 
          origins=[
