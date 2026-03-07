@@ -1,0 +1,14 @@
+# Global Environments
+.env
+*.env
+.venv/
+venv/
+env/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

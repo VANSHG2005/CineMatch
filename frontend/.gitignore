@@ -1,0 +1,16 @@
+# Node Dependencies
+node_modules/
+
+# Build Artifacts
+dist/
+dist-ssr/
+*.local
+
+# Local Environments
+.env
+.env.*.local
+
+# Debug Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

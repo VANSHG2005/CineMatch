@@ -1,0 +1,10 @@
+# JavaScript / React
+*.js text eol=lf
+*.jsx text eol=lf
+
+# Styles
+*.css text eol=lf
+
+# Assets
+*.svg text
+*.ico binary

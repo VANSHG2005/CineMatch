@@ -1,0 +1,19 @@
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local Environments
+.env
+.venv/
+venv/
+env/
+.venv-1/
+
+# Database
+instance/
+*.db
+*.sqlite
+
+# Large Model Files
+model/*.pkl

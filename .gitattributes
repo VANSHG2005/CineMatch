@@ -1,0 +1,22 @@
+# Handle line endings automatically for files detected as text 
+# and leave binary files untouched.
+* text=auto
+
+# Common text files
+*.md text
+*.json text
+*.yaml text
+*.yml text
+*.html text
+*.css text
+*.js text
+*.jsx text
+*.py text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text

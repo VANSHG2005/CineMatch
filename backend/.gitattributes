@@ -1,0 +1,8 @@
+# Python scripts
+*.py text eol=lf
+
+# Machine Learning Models (Large files)
+model/*.pkl filter=lfs diff=lfs merge=lfs -text
+
+# Database files
+instance/*.db binary
