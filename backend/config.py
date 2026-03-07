@@ -14,6 +14,10 @@ class Config:
     
     SQLALCHEMY_DATABASE_URI = DATABASE_URL or 'sqlite:///instance/users.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Cookie settings for cross-site auth (Vercel + Render)
+    SESSION_COOKIE_SAMESITE = 'None'
+    SESSION_COOKIE_SECURE = True
     
     # Model URLs
     MODEL_URLS = {
