@@ -24,11 +24,15 @@ class RecommendationService:
             self._download_file(url, destination)
 
         try:
+            print("Loading models with memory mapping...")
             self.movie_df = joblib.load(os.path.join(model_dir, 'tmdb_movies.pkl'))
-            self.movie_similarity = joblib.load(os.path.join(model_dir, 'tmdb_similarity.pkl'))
+            # Use mmap_mode='r' for large similarity matrices to save RAM
+            self.movie_similarity = joblib.load(os.path.join(model_dir, 'tmdb_similarity.pkl'), mmap_mode='r')
+            
             self.tv_df = joblib.load(os.path.join(model_dir, 'tmdb_tv_series.pkl'))
-            self.tv_similarity = joblib.load(os.path.join(model_dir, 'tmdb_tv_similarity.pkl'))
-            print("All model files loaded successfully.")
+            self.tv_similarity = joblib.load(os.path.join(model_dir, 'tmdb_tv_similarity.pkl'), mmap_mode='r')
+            
+            print("All model files loaded successfully (RAM-optimized).")
         except Exception as e:
             print(f"Error loading models: {e}")
 
@@ -51,7 +55,9 @@ class RecommendationService:
         return match[0] if match else None
 
     def get_movie_recommendations(self, movie_name):
-        if self.movie_df is None: return None, []
+        if self.movie_df is None or self.movie_similarity is None: 
+            return None, []
+        
         titles = self.movie_df["title"].tolist()
         closest_match = self.get_best_match(movie_name, titles)
 
@@ -88,7 +94,9 @@ class RecommendationService:
         return searched_movie, recs
 
     def get_tv_recommendations(self, tv_name):
-        if self.tv_df is None: return None, []
+        if self.tv_df is None or self.tv_similarity is None: 
+            return None, []
+            
         title_column = "name" if "name" in self.tv_df.columns else "title"
         titles = self.tv_df[title_column].tolist()
         

@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_login import LoginManager
 from config import Config
@@ -12,12 +12,16 @@ def create_app():
     app.config.from_object(Config)
     
     # Enhanced CORS Configuration
-    # This allows your specific Vercel URL and local development
-    CORS(app, supports_credentials=True, origins=[
-        "https://cine-match-zeta.vercel.app",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ])
+    # Using a more permissive setup for production troubleshooting
+    CORS(app, 
+         supports_credentials=True, 
+         origins=[
+            "https://cine-match-zeta.vercel.app",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+         ],
+         allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
     
     # Initialize DB
     db.init_app(app)
@@ -30,10 +34,20 @@ def create_app():
     def load_user(user_id):
         return User.query.get(user_id)
     
+    # Health check route
+    @app.route('/health')
+    def health():
+        return jsonify({"status": "healthy", "service": "cinematch-backend"}), 200
+    
     # Initialize recommendation service
     with app.app_context():
-        recommendation_service.init_app(app)
-        db.create_all()
+        print("Initializing database and services...")
+        try:
+            db.create_all()
+            recommendation_service.init_app(app)
+            print("Initialization successful.")
+        except Exception as e:
+            print(f"Initialization error: {e}")
     
     # Register Blueprints
     app.register_blueprint(api, url_prefix='/api')
@@ -43,6 +57,5 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    # Use environment variable for port if available (Render provides this)
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, host='0.0.0.0', port=port)
