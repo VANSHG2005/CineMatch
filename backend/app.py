@@ -34,6 +34,12 @@ def create_app():
     def load_user(user_id):
         return User.query.get(user_id)
     
+    # Global error logger
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        app.logger.error(f"Server Error: {str(e)}")
+        return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
+    
     # Health check route
     @app.route('/health')
     def health():
