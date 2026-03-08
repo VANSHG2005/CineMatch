@@ -50,6 +50,11 @@ def create_app():
     def health():
         return jsonify({"status": "healthy", "service": "cinematch-backend"}), 200
     
+    # Root route for monitors
+    @app.route('/')
+    def index():
+        return jsonify({"message": "CineMatch API is running", "docs": "/api"}), 200
+    
     # Initialize recommendation service
     with app.app_context():
         print("Initializing database and services...")
