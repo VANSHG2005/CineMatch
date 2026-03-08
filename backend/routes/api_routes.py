@@ -288,8 +288,11 @@ def recommend():
 def signup():
     data = request.json
     name = data.get('name')
-    email = data.get('email')
+    email = data.get('email', '').strip().lower()
     password = data.get('password')
+    
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
     
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Email already registered'}), 400
@@ -310,8 +313,11 @@ def signup():
 @api.route('/auth/login', methods=['POST'])
 def login():
     data = request.json
-    email = data.get('email')
+    email = data.get('email', '').strip().lower()
     password = data.get('password')
+    
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
     
     user = User.query.filter_by(email=email).first()
     if user and user.check_password(password):
@@ -339,11 +345,13 @@ def update_profile():
     name = data.get('name')
     email = data.get('email')
     
-    if email and email != current_user.email:
-        existing = User.query.filter_by(email=email).first()
-        if existing:
-            return jsonify({'error': 'Email already in use'}), 400
-        current_user.email = email
+    if email:
+        email = email.strip().lower()
+        if email != current_user.email:
+            existing = User.query.filter_by(email=email).first()
+            if existing:
+                return jsonify({'error': 'Email already in use'}), 400
+            current_user.email = email
         
     if name:
         current_user.name = name

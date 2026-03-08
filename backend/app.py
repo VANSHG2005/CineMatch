@@ -31,6 +31,17 @@ def create_app():
     # Initialize DB
     db.init_app(app)
     
+    # Log database connection info (scrubbed)
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if 'sqlite' in db_uri:
+        print(f"Using SQLite database: {db_uri}")
+    elif 'postgresql' in db_uri:
+        # Scrub password from log
+        safe_uri = db_uri.split('@')[-1] if '@' in db_uri else db_uri
+        print(f"Using PostgreSQL database: {safe_uri}")
+    else:
+        print("Using unknown database type")
+    
     # Initialize Login Manager
     login_manager = LoginManager()
     login_manager.init_app(app)
