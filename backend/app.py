@@ -52,13 +52,21 @@ def create_app():
     
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(user_id)
+        # Modern way to get user in SQLAlchemy 3.0+
+        return db.session.get(User, user_id)
     
     # Global error logger
     @app.errorhandler(Exception)
     def handle_exception(e):
-        app.logger.error(f"Server Error: {str(e)}")
-        return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
+        import traceback
+        import sys
+        print("!!! SERVER ERROR DETECTED !!!", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({
+            "error": "Internal Server Error", 
+            "message": str(e),
+            "type": e.__class__.__name__
+        }), 500
     
     # Health check route
     @app.route('/health')
