@@ -12,7 +12,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(100))
     email = db.Column(db.String(100), unique=True)
     profile_pic = db.Column(db.String(200))
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.Text)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
