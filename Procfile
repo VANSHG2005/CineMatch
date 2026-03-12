@@ -1,1 +1,1 @@
-web: python backend/fix_db.py && gunicorn --chdir backend app:app --preload --pythonpath backend
+web: gunicorn --chdir backend app:app

@@ -82,13 +82,19 @@ def create_app():
     with app.app_context():
         print("Initializing database and services...")
         try:
-            # create_all will only create tables if they don't exist
-            # On Render with Postgres, this ensures the schema is ready
             db.create_all()
+            
+            # FORCE FIX: Ensure password_hash can handle long scrypt hashes
+            from sqlalchemy import text
+            db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+            db.session.commit()
+            print("Database schema verified/updated.")
+            
             recommendation_service.init_app(app)
             print("Initialization successful.")
         except Exception as e:
-            print(f"Initialization error: {e}")
+            print(f"Initialization/Fix error: {e}")
+            db.session.rollback()
     
     # Register Blueprints
     app.register_blueprint(api, url_prefix='/api')
