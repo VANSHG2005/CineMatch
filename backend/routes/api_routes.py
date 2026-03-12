@@ -294,7 +294,9 @@ def signup():
     if not email:
         return jsonify({'error': 'Email is required'}), 400
     
-    if User.query.filter_by(email=email).first():
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        print(f"Signup blocked: {email} already exists.")
         return jsonify({'error': 'Email already registered'}), 400
     
     user = User(
@@ -304,8 +306,15 @@ def signup():
         profile_pic='https://via.placeholder.com/150'
     )
     user.set_password(password)
-    db.session.add(user)
-    db.session.commit()
+    
+    try:
+        db.session.add(user)
+        db.session.commit()
+        print(f"New user registered: {email}")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Signup error for {email}: {e}")
+        return jsonify({'error': 'Could not create account. Please try again.'}), 500
     
     login_user(user)
     return jsonify({'user': user.to_dict()})
@@ -320,9 +329,15 @@ def login():
         return jsonify({'error': 'Email is required'}), 400
     
     user = User.query.filter_by(email=email).first()
-    if user and user.check_password(password):
-        login_user(user)
-        return jsonify({'user': user.to_dict()})
+    if user:
+        if user.check_password(password):
+            login_user(user)
+            print(f"User logged in: {email}")
+            return jsonify({'user': user.to_dict()})
+        else:
+            print(f"Login failed: Incorrect password for {email}")
+    else:
+        print(f"Login failed: User not found: {email}")
     
     return jsonify({'error': 'Invalid credentials'}), 401
 

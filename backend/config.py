@@ -4,22 +4,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY") or os.urandom(24)
+    # Ensure SECRET_KEY is consistent to prevent session loss on restart
+    SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-secret-key-12345"
     TMDB_API_KEY = os.environ.get('TMDB_API_KEY')
     TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/w500"
     
+    # Render provides postgres:// which SQLAlchemy 1.4+ needs as postgresql://
     DATABASE_URL = os.environ.get('DATABASE_URL')
     if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     
-    # Use absolute path for SQLite
+    # Use absolute path for SQLite (fallback)
     basedir = os.path.abspath(os.path.dirname(__file__))
     SQLALCHEMY_DATABASE_URI = DATABASE_URL or f'sqlite:///{os.path.join(basedir, "instance", "users.db")}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Cookie settings for cross-site auth (Vercel + Render)
+    # Cookie settings for cross-site auth (Vercel frontend + Render backend)
     SESSION_COOKIE_SAMESITE = 'None'
     SESSION_COOKIE_SECURE = True
+    # Ensure session persists across browser restarts if desired
+    REMEMBER_COOKIE_DURATION = 3600 * 24 * 30  # 30 days
     
     # Model URLs
     MODEL_URLS = {

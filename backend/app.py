@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_login import LoginManager
+from flask_migrate import Migrate
 from config import Config
 from models.user import db, User
 from routes.api_routes import api
@@ -11,7 +12,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    # Ensure instance folder exists for SQLite
+    # Ensure instance folder exists for SQLite (fallback only)
     try:
         os.makedirs(app.instance_path, exist_ok=True)
     except Exception as e:
@@ -31,14 +32,17 @@ def create_app():
     # Initialize DB
     db.init_app(app)
     
+    # Initialize Migrate
+    migrate = Migrate(app, db)
+    
     # Log database connection info (scrubbed)
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
     if 'sqlite' in db_uri:
-        print(f"Using SQLite database: {db_uri}")
+        print(f"WARNING: Using SQLite database (ephemeral): {db_uri}")
     elif 'postgresql' in db_uri:
         # Scrub password from log
         safe_uri = db_uri.split('@')[-1] if '@' in db_uri else db_uri
-        print(f"Using PostgreSQL database: {safe_uri}")
+        print(f"SUCCESS: Using PostgreSQL database (persistent): {safe_uri}")
     else:
         print("Using unknown database type")
     
@@ -70,6 +74,8 @@ def create_app():
     with app.app_context():
         print("Initializing database and services...")
         try:
+            # create_all will only create tables if they don't exist
+            # On Render with Postgres, this ensures the schema is ready
             db.create_all()
             recommendation_service.init_app(app)
             print("Initialization successful.")
