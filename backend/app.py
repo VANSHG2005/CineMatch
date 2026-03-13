@@ -76,16 +76,17 @@ def create_app():
     # Root route for monitors
     @app.route('/')
     def index():
-        return jsonify({"message": "CineMatch API is running", "docs": "/api"}), 200
+        return jsonify({"message": "CineMatch API is running (v2-lazy-fix)", "docs": "/api"}), 200
     
     # Initialize recommendation service
     with app.app_context():
+        print("BOOTING: Initializing recommendation service (deferred)...")
         try:
             # Initialize service (Lazy loading is enabled inside)
             recommendation_service.init_app(app)
-            print("Backend services initialized successfully.")
+            print("BOOTING: Backend services ready for first request.")
         except Exception as e:
-            print(f"Service initialization error: {e}")
+            print(f"BOOTING error: {e}")
     
     # Register Blueprints
     app.register_blueprint(api, url_prefix='/api')
