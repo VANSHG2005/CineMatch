@@ -3,11 +3,13 @@ services:
     name: cinematch-backend
     env: python
     buildCommand: pip install -r backend/requirements.txt && python backend/download_models.py
-    startCommand: gunicorn --chdir backend --timeout 120 app:app
+    startCommand: flask db upgrade && gunicorn --chdir backend --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 app:app
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: FLASK_APP
+        value: backend/app.py
       - key: DATABASE_URL
         fromDatabase:
           name: cinematch-db

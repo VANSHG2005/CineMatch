@@ -80,21 +80,12 @@ def create_app():
     
     # Initialize recommendation service
     with app.app_context():
-        print("Initializing database and services...")
         try:
-            db.create_all()
-            
-            # FORCE FIX: Ensure password_hash can handle long scrypt hashes
-            from sqlalchemy import text
-            db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
-            db.session.commit()
-            print("Database schema verified/updated.")
-            
+            # Initialize service (Lazy loading is enabled inside)
             recommendation_service.init_app(app)
-            print("Initialization successful.")
+            print("Backend services initialized successfully.")
         except Exception as e:
-            print(f"Initialization/Fix error: {e}")
-            db.session.rollback()
+            print(f"Service initialization error: {e}")
     
     # Register Blueprints
     app.register_blueprint(api, url_prefix='/api')
