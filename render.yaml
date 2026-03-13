@@ -2,8 +2,8 @@ services:
   - type: web
     name: cinematch-backend
     env: python
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: gunicorn --chdir backend app:app
+    buildCommand: pip install -r backend/requirements.txt && python backend/download_models.py
+    startCommand: gunicorn --chdir backend --timeout 120 app:app
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION

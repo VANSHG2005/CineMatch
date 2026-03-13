@@ -10,31 +10,57 @@ class RecommendationService:
         self.movie_similarity = None
         self.tv_df = None
         self.tv_similarity = None
+        self.app = None
+        self.model_dir = None
         if app:
             self.init_app(app)
 
     def init_app(self, app):
-        model_dir = os.path.join(app.root_path, 'model')
-        if not os.path.exists(model_dir):
-            os.makedirs(model_dir)
+        self.app = app
+        self.model_dir = os.path.join(app.root_path, 'model')
+        if not os.path.exists(self.model_dir):
+            os.makedirs(self.model_dir)
 
+        # Download logic as backup (Build step should handle this now)
         model_urls = app.config['MODEL_URLS']
         for filename, url in model_urls.items():
-            destination = os.path.join(model_dir, filename)
+            destination = os.path.join(self.model_dir, filename)
             self._download_file(url, destination)
+            
+        print("Recommendation service initialized (Lazy Loading enabled).")
 
+    def _ensure_models_loaded(self):
+        if self.movie_df is not None and self.movie_similarity is not None and \
+           self.tv_df is not None and self.tv_similarity is not None:
+            return True
+            
         try:
-            print("Loading models with memory mapping...")
-            self.movie_df = joblib.load(os.path.join(model_dir, 'tmdb_movies.pkl'))
-            # Use mmap_mode='r' for large similarity matrices to save RAM
-            self.movie_similarity = joblib.load(os.path.join(model_dir, 'tmdb_similarity.pkl'), mmap_mode='r')
+            # Re-ensure model_dir if it was lost
+            if not self.model_dir:
+                # Fallback to current_app if self.app is lost in some context
+                root_path = self.app.root_path if self.app else current_app.root_path
+                self.model_dir = os.path.join(root_path, 'model')
+
+            print("Loading models lazily (this may take a few seconds)...")
             
-            self.tv_df = joblib.load(os.path.join(model_dir, 'tmdb_tv_series.pkl'))
-            self.tv_similarity = joblib.load(os.path.join(model_dir, 'tmdb_tv_similarity.pkl'), mmap_mode='r')
+            if self.movie_df is None:
+                self.movie_df = joblib.load(os.path.join(self.model_dir, 'tmdb_movies.pkl'))
             
-            print("All model files loaded successfully (RAM-optimized).")
+            if self.movie_similarity is None:
+                # Use mmap_mode='r' for large similarity matrices to save RAM
+                self.movie_similarity = joblib.load(os.path.join(self.model_dir, 'tmdb_similarity.pkl'), mmap_mode='r')
+            
+            if self.tv_df is None:
+                self.tv_df = joblib.load(os.path.join(self.model_dir, 'tmdb_tv_series.pkl'))
+                
+            if self.tv_similarity is None:
+                self.tv_similarity = joblib.load(os.path.join(self.model_dir, 'tmdb_tv_similarity.pkl'), mmap_mode='r')
+            
+            print("All models loaded successfully.")
+            return True
         except Exception as e:
             print(f"Error loading models: {e}")
+            return False
 
     def _download_file(self, url, destination):
         if not os.path.exists(destination):
@@ -55,7 +81,7 @@ class RecommendationService:
         return match[0] if match else None
 
     def get_movie_recommendations(self, movie_name):
-        if self.movie_df is None or self.movie_similarity is None: 
+        if not self._ensure_models_loaded():
             return None, []
         
         titles = self.movie_df["title"].tolist()
@@ -94,7 +120,7 @@ class RecommendationService:
         return searched_movie, recs
 
     def get_tv_recommendations(self, tv_name):
-        if self.tv_df is None or self.tv_similarity is None: 
+        if not self._ensure_models_loaded():
             return None, []
             
         title_column = "name" if "name" in self.tv_df.columns else "title"
