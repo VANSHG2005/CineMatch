@@ -1,20 +1,17 @@
 import axios from 'axios';
 
-let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-// Ensure the URL ends with /api to match the backend blueprint
-if (!API_URL.endsWith('/api')) {
-  API_URL = API_URL.endsWith('/') ? `${API_URL}api` : `${API_URL}/api`;
-}
+// Default to localhost if the env variable isn't set
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
-  baseURL: API_URL,
-  withCredentials: true,
+  baseURL: BASE_URL,
+  withCredentials: true, // Needed for session cookies (Flask-Login)
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// TMDB related endpoints
 export const tmdbApi = {
   getInitData: () => api.get('/init-data'),
   getGenres: () => api.get('/genres'),
@@ -28,6 +25,7 @@ export const tmdbApi = {
   recommend: (name, contentType) => api.post('/recommend', { name, content_type: contentType }),
 };
 
+// User and Auth endpoints
 export const authApi = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   signup: (name, email, password) => api.post('/auth/signup', { name, email, password }),
@@ -36,6 +34,7 @@ export const authApi = {
   updateProfile: (data) => api.put('/auth/update', data),
 };
 
+// Watchlist endpoints
 export const watchlistApi = {
   getWatchlist: () => api.get('/watchlist'),
   add: (item) => api.post('/watchlist/add', item),
@@ -43,6 +42,7 @@ export const watchlistApi = {
   removeToggle: (itemId, itemType) => api.delete(`/watchlist/remove_toggle/${itemId}/${itemType}`),
 };
 
+// Commenting system
 export const commentsApi = {
   getComments: (itemId, itemType) => api.get(`/comments/${itemId}/${itemType}`),
   postComment: (data) => api.post('/comments', data),

@@ -12,13 +12,14 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    # Ensure instance folder exists for SQLite (fallback only)
+    # Just making sure the instance folder exists so SQLite doesn't crash on me
     try:
         os.makedirs(app.instance_path, exist_ok=True)
     except Exception as e:
-        print(f"Error creating instance path: {e}")
+        print(f"Had some trouble creating the instance path: {e}")
     
-    # Enhanced CORS Configuration
+    # Setup CORS - needed for Vercel/Render communication
+    # Make sure to include both localhost and the production URL
     CORS(app, 
          supports_credentials=True, 
          origins=[
@@ -29,66 +30,61 @@ def create_app():
          allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
     
-    # Initialize DB
+    # Fire up the DB and Migrations
     db.init_app(app)
-    
-    # Initialize Migrate
     migrate = Migrate(app, db)
     
-    # Log database connection info (scrubbed)
+    # Just a small check to see which DB we're actually hitting (dev vs prod)
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
     if 'sqlite' in db_uri:
-        print(f"WARNING: Using SQLite database (ephemeral): {db_uri}")
+        print(f"NOTE: Using SQLite for local dev: {db_uri}")
     elif 'postgresql' in db_uri:
-        # Scrub password from log
+        # Don't want to log the full URL with password, so just the end
         safe_uri = db_uri.split('@')[-1] if '@' in db_uri else db_uri
-        print(f"SUCCESS: Using PostgreSQL database (persistent): {safe_uri}")
-    else:
-        print("Using unknown database type")
+        print(f"SUCCESS: Connected to PostgreSQL (Production): {safe_uri}")
     
-    # Initialize Login Manager
+    # Flask-Login setup
     login_manager = LoginManager()
     login_manager.init_app(app)
     
     @login_manager.user_loader
     def load_user(user_id):
-        # Modern way to get user in SQLAlchemy 3.0+
+        # Using db.session.get because it's the newer way in SQLAlchemy
         return db.session.get(User, user_id)
     
-    # Global error logger
+    # Custom error handler so the frontend doesn't just get a blank 500
     @app.errorhandler(Exception)
     def handle_exception(e):
         import traceback
         import sys
-        print("!!! SERVER ERROR DETECTED !!!", file=sys.stderr)
+        print("--- DEBUG: SERVER ERROR ---", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         return jsonify({
-            "error": "Internal Server Error", 
+            "error": "Something went wrong on the server", 
             "message": str(e),
             "type": e.__class__.__name__
         }), 500
     
-    # Health check route
+    # Simple routes for checking if the server is alive
     @app.route('/health')
     def health():
-        return jsonify({"status": "healthy", "service": "cinematch-backend"}), 200
+        return jsonify({"status": "all good", "version": "1.0.1"}), 200
     
-    # Root route for monitors
     @app.route('/')
     def index():
-        return jsonify({"message": "CineMatch API is running (v2-lazy-fix)", "docs": "/api"}), 200
+        return jsonify({"message": "CineMatch API is live", "endpoints": "/api"}), 200
     
-    # Initialize recommendation service
+    # Initializing the ML recommendation engine here
     with app.app_context():
-        print("BOOTING: Initializing recommendation service (deferred)...")
+        print("Starting up the recommendation engine...")
         try:
-            # Initialize service (Lazy loading is enabled inside)
+            # We use lazy loading inside here to save memory on start
             recommendation_service.init_app(app)
-            print("BOOTING: Backend services ready for first request.")
+            print("Backend logic is fully loaded.")
         except Exception as e:
-            print(f"BOOTING error: {e}")
+            print(f"Error during startup: {e}")
     
-    # Register Blueprints
+    # All our main API logic is inside this blueprint
     app.register_blueprint(api, url_prefix='/api')
     
     return app
