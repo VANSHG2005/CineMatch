@@ -11,13 +11,32 @@ class Config:
     
     # Render provides postgres:// which SQLAlchemy 1.4+ needs as postgresql://
     DATABASE_URL = os.environ.get('DATABASE_URL')
-    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    if DATABASE_URL:
+        if DATABASE_URL.startswith("postgres://"):
+            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        
+        # Log sanitized DB info for debugging DNS issues
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(DATABASE_URL)
+            print(f"DEBUG: Connecting to DB host: {parsed.hostname}")
+        except:
+            print("DEBUG: DATABASE_URL is set but could not parse hostname")
+    else:
+        print("DEBUG: DATABASE_URL not set, falling back to SQLite")
     
     # Use absolute path for SQLite (fallback)
     basedir = os.path.abspath(os.path.dirname(__file__))
     SQLALCHEMY_DATABASE_URI = DATABASE_URL or f'sqlite:///{os.path.join(basedir, "instance", "users.db")}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Engine options for better connection handling on Render/Postgres
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+        "pool_size": 10,
+        "max_overflow": 20,
+    }
 
     # Cookie settings for cross-site auth (Vercel frontend + Render backend)
     SESSION_COOKIE_SAMESITE = 'None'

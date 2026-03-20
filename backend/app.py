@@ -9,6 +9,48 @@ from routes.api_routes import api
 from services.recommendation_service import recommendation_service
 import os
 
+def _run_startup_migrations():
+    """
+    Runs lightweight DB migrations on every startup.
+    All operations are idempotent — safe to run repeatedly.
+    """
+    from sqlalchemy import text
+    print("Running startup DB migrations...")
+
+    # Fix 1: Ensure password_hash column is TEXT (was VARCHAR(128), too short for bcrypt)
+    try:
+        db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+        db.session.commit()
+        print("[migration] password_hash column set to TEXT.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] password_hash already OK or skipped: {e}")
+
+    # Fix 2: Create comments table if it doesn't exist
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS comments (
+                id         SERIAL PRIMARY KEY,
+                user_id    VARCHAR(36) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                item_id    INTEGER NOT NULL,
+                item_type  VARCHAR(10) NOT NULL,
+                text       TEXT NOT NULL,
+                created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+            );
+        """))
+        db.session.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_comments_item
+            ON comments (item_id, item_type);
+        """))
+        db.session.commit()
+        print("[migration] comments table ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] comments table error: {e}")
+
+    print("Startup migrations complete.")
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -84,6 +126,11 @@ def create_app():
     def index():
         return jsonify({"message": "CineMatch API is live"}), 200
     
+    # Run DB migrations automatically on every deploy.
+    # This is safe to run repeatedly — all statements use IF NOT EXISTS / try-except.
+    with app.app_context():
+        _run_startup_migrations()
+
     # Initializing the ML recommendation engine here
     with app.app_context():
         print("Starting up the recommendation engine...")

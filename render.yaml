@@ -2,8 +2,9 @@ services:
   - type: web
     name: cinematch-backend
     env: python
+    region: oregon
     buildCommand: pip install -r backend/requirements.txt && python backend/download_models.py
-    startCommand: cd backend && flask db upgrade && cd .. && gunicorn --chdir backend --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 app:app
+    startCommand: flask db upgrade && gunicorn --chdir backend --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 app:app
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
@@ -22,3 +23,5 @@ services:
 databases:
   - name: cinematch-db
     plan: free
+    region: Singapore
+

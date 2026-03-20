@@ -432,27 +432,41 @@ def remove_watchlist_toggle(item_id, item_type):
 # Comment Routes
 @api.route("/comments/<int:item_id>/<item_type>", methods=["GET"])
 def get_comments(item_id, item_type):
-    comments = Comment.query.filter_by(item_id=item_id, item_type=item_type).order_by(Comment.created_at.desc()).all()
-    return jsonify([c.to_dict() for c in comments])
+    try:
+        comments = Comment.query.filter_by(item_id=item_id, item_type=item_type).order_by(Comment.created_at.desc()).all()
+        return jsonify([c.to_dict() for c in comments])
+    except Exception as e:
+        # Gracefully handle the case where the comments table doesn't exist yet.
+        # Run create_comments_table.py on the server to permanently fix this.
+        print(f"Comments table error (run create_comments_table.py to fix): {e}")
+        return jsonify([])
 
 @api.route("/comments", methods=["POST"])
 @login_required
 def post_comment():
     data = request.json
-    comment = Comment(
-        user_id=current_user.id,
-        item_id=data["item_id"],
-        item_type=data["item_type"],
-        text=data["text"]
-    )
-    db.session.add(comment)
-    db.session.commit()
-    return jsonify(comment.to_dict())
+    if not data or not data.get("text", "").strip():
+        return jsonify({"error": "Comment text is required"}), 400
+    try:
+        comment = Comment(
+            user_id=current_user.id,
+            item_id=data["item_id"],
+            item_type=data["item_type"],
+            text=data["text"].strip()
+        )
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify(comment.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        print(f"Failed to post comment: {e}")
+        return jsonify({"error": "Could not save comment. Please try again."}), 500
 
 @api.route("/comments/<int:comment_id>", methods=["DELETE"])
 @login_required
 def delete_comment(comment_id):
-    comment = Comment.query.get(comment_id)
+    # Use db.session.get() — Query.get() is deprecated in SQLAlchemy 2.0
+    comment = db.session.get(Comment, comment_id)
     if not comment:
         return jsonify({"error": "Comment not found"}), 404
     if comment.user_id != current_user.id:
@@ -460,4 +474,3 @@ def delete_comment(comment_id):
     db.session.delete(comment)
     db.session.commit()
     return jsonify({"message": "Comment deleted"})
-
