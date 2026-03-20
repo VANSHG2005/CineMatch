@@ -41,9 +41,7 @@ const CategoryPage = () => {
       <h1 className="section-title">{title}</h1>
       <div className="content-grid">
         {items.map(item => (
-          <div key={item.id} style={{ width: '100%' }}>
-            <MovieCard item={item} type={type} />
-          </div>
+          <MovieCard key={item.id} item={item} type={type} />
         ))}
       </div>
     </div>

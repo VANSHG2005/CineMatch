@@ -46,26 +46,28 @@ const SearchResults = () => {
       {hasResults ? (
         <>
           {results.movies?.length > 0 && (
-            <section style={{ marginBottom: '50px' }}>
-              <h2 className="section-title">Movies</h2>
+            <section style={{ marginBottom: '60px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '15px', marginBottom: '25px' }}>
+                <h2 className="section-title" style={{ margin: 0 }}>Movies</h2>
+                <span style={{ color: '#666', fontSize: '0.9rem' }}>{results.movies.length} matches</span>
+              </div>
               <div className="content-grid">
                 {results.movies.map(movie => (
-                  <div key={movie.id} style={{ width: '100%' }}>
-                    <MovieCard item={movie} type="movie" />
-                  </div>
+                  <MovieCard key={movie.id} item={movie} type="movie" />
                 ))}
               </div>
             </section>
           )}
 
           {results.tv_shows?.length > 0 && (
-            <section style={{ marginBottom: '50px' }}>
-              <h2 className="section-title">TV Shows</h2>
+            <section style={{ marginBottom: '60px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '15px', marginBottom: '25px' }}>
+                <h2 className="section-title" style={{ margin: 0 }}>TV Shows</h2>
+                <span style={{ color: '#666', fontSize: '0.9rem' }}>{results.tv_shows.length} matches</span>
+              </div>
               <div className="content-grid">
                 {results.tv_shows.map(tv => (
-                  <div key={tv.id} style={{ width: '100%' }}>
-                    <MovieCard item={tv} type="tv" />
-                  </div>
+                  <MovieCard key={tv.id} item={tv} type="tv" />
                 ))}
               </div>
             </section>

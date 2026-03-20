@@ -41,9 +41,7 @@ const GenrePage = () => {
           <h2 className="section-title" style={{ borderLeftColor: '#e50914' }}>Movies</h2>
           <div className="content-grid">
             {data.movies.map(movie => (
-              <div key={movie.id} style={{ width: '100%' }}>
-                <MovieCard item={movie} type="movie" />
-              </div>
+              <MovieCard key={movie.id} item={movie} type="movie" />
             ))}
           </div>
         </section>
@@ -54,9 +52,7 @@ const GenrePage = () => {
           <h2 className="section-title" style={{ borderLeftColor: '#00c853' }}>TV Shows</h2>
           <div className="content-grid">
             {data.tv_shows.map(show => (
-              <div key={show.id} style={{ width: '100%' }}>
-                <MovieCard item={show} type="tv" />
-              </div>
+              <MovieCard key={show.id} item={show} type="tv" />
             ))}
           </div>
         </section>
