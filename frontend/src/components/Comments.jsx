@@ -6,6 +6,7 @@ const Comments = ({ itemId, itemType, currentUser }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [posting, setPostings] = useState(false);
 
   useEffect(() => {
@@ -14,11 +15,13 @@ const Comments = ({ itemId, itemType, currentUser }) => {
 
   const fetchComments = async () => {
     setLoading(true);
+    setError(false);
     try {
       const response = await commentsApi.getComments(itemId, itemType);
       setComments(response.data);
     } catch (err) {
       console.error("Failed to fetch comments", err);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -92,6 +95,11 @@ const Comments = ({ itemId, itemType, currentUser }) => {
 
       {loading ? (
         <p>Loading comments...</p>
+      ) : error ? (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+          <p>Unable to load comments at this time.</p>
+          <button onClick={fetchComments} style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', marginTop: '10px' }}>Try Again</button>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
           {comments.length === 0 ? (

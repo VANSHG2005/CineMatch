@@ -67,8 +67,8 @@ class Comment(db.Model):
         return {
             'id': self.id,
             'user_id': self.user_id,
-            'user_name': self.user.name,
-            'user_pic': self.user.profile_pic,
+            'user_name': self.user.name if self.user else "Unknown User",
+            'user_pic': self.user.profile_pic if self.user else "https://via.placeholder.com/150",
             'item_id': self.item_id,
             'text': self.text,
             'created_at': self.created_at.isoformat()
