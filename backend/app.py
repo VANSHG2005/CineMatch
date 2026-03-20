@@ -9,12 +9,22 @@ from routes.api_routes import api
 from services.recommendation_service import recommendation_service
 import os
 
-def _run_startup_migrations():
+def _run_startup_migrations(app):
     """
     Runs lightweight DB migrations on every startup.
     All operations are idempotent — safe to run repeatedly.
     """
     from sqlalchemy import text
+
+    # Step 1: Create all tables defined in models if they don't exist yet.
+    # This handles a brand-new empty database (e.g. fresh Render PostgreSQL instance).
+    print("Ensuring all model tables exist...")
+    try:
+        db.create_all()
+        print("[migration] db.create_all() complete.")
+    except Exception as e:
+        print(f"[migration] db.create_all() error: {e}")
+
     print("Running startup DB migrations...")
 
     # Fix 1: Ensure password_hash column is TEXT (was VARCHAR(128), too short for bcrypt)
@@ -76,6 +86,11 @@ def create_app():
     # Fire up the DB and Migrations
     db.init_app(app)
     migrate = Migrate(app, db)
+
+    # Run DB migrations right after db is bound — creates missing tables and fixes column types.
+    # Safe to run on every deploy (all ops are idempotent).
+    with app.app_context():
+        _run_startup_migrations(app)
     
     # Just a small check to see which DB we're actually hitting (dev vs prod)
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
@@ -126,11 +141,6 @@ def create_app():
     def index():
         return jsonify({"message": "CineMatch API is live"}), 200
     
-    # Run DB migrations automatically on every deploy.
-    # This is safe to run repeatedly — all statements use IF NOT EXISTS / try-except.
-    with app.app_context():
-        _run_startup_migrations()
-
     # Initializing the ML recommendation engine here
     with app.app_context():
         print("Starting up the recommendation engine...")
