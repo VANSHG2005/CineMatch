@@ -38,9 +38,9 @@ const SearchResults = () => {
   const hasResults = results.movies?.length > 0 || results.tv_shows?.length > 0;
 
   return (
-    <div className="container" style={{ padding: '40px 4%' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '40px', fontSize: '2.5rem' }}>
-        Search Results for <span style={{ color: 'var(--primary-color)' }}>"{query}"</span>
+    <div className="genre-browse-container">
+      <h1 className="search-results-title">
+        Search Results for <span className="search-query-text">"{query}"</span>
       </h1>
 
       {hasResults ? (

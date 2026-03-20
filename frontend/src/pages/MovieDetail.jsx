@@ -24,7 +24,7 @@ const UserScore = ({ score }) => {
   const color = score >= 7 ? '#21d07a' : score >= 5 ? '#d2d531' : '#db2360';
   
   return (
-    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '25px' }}>
+    <div className="user-score-container" style={{ display: 'flex', alignItems: 'center', marginBottom: '25px' }}>
       <div style={{ 
         width: '55px', 
         height: '55px', 
@@ -36,7 +36,8 @@ const UserScore = ({ score }) => {
         justifyContent: 'center',
         fontWeight: 'bold',
         fontSize: '1.1rem',
-        color: 'white'
+        color: 'white',
+        flexShrink: 0
       }}>
         {percentage}%
       </div>
@@ -154,21 +155,13 @@ const MovieDetail = ({ user }) => {
       <div 
         className="movie-hero" 
         style={{ 
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url('https://image.tmdb.org/t/p/original${details.backdrop_path}')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          padding: '60px 4%',
-          color: 'white',
-          minHeight: '500px',
-          display: 'flex',
-          alignItems: 'center',
-          backgroundColor: '#141414'
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url('https://image.tmdb.org/t/p/original${details.backdrop_path}')`
         }}
       >
-        <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-          <div className="row" style={{ display: 'flex', flexWrap: 'wrap', gap: '40px' }}>
-            <div className="col-md-4" style={{ flex: '0 0 300px' }}>
-              <div style={{ position: 'relative', aspectRatio: '2/3', background: '#1a1a1a', borderRadius: '12px', overflow: 'hidden' }}>
+        <div className="movie-hero-container">
+          <div className="movie-hero-row">
+            <div className="movie-poster-container">
+              <div className="movie-poster-wrapper">
                 {!loadedImages['hero'] && <div className="skeleton skeleton-rect" style={{ position: 'absolute', top: 0, left: 0 }}></div>}
                 <img 
                   src={`${imgUrl}${details.poster_path}`} 
@@ -179,24 +172,23 @@ const MovieDetail = ({ user }) => {
                 />
               </div>
             </div>
-            <div className="col-md-8 movie-info" style={{ flex: '1', minWidth: '300px' }}>
-              <h1 style={{ fontSize: '3rem', marginBottom: '10px', fontWeight: '800' }}>
-                {details.title} <span style={{ opacity: 0.6, fontWeight: 400 }}>({details.release_date?.substring(0, 4)})</span>
+            <div className="movie-info">
+              <h1 className="movie-title">
+                {details.title} <span className="movie-year">({details.release_date?.substring(0, 4)})</span>
               </h1>
               
-              <div className="movie-meta" style={{ marginBottom: '20px', fontSize: '1rem', opacity: 0.8, display: 'flex', gap: '15px', alignItems: 'center' }}>
-                {details.release_date && <span style={{ border: '1px solid rgba(255,255,255,0.3)', padding: '2px 8px', borderRadius: '4px' }}>{details.release_date}</span>}
+              <div className="movie-meta">
+                {details.release_date && <span className="meta-date">{details.release_date}</span>}
                 <span>{details.genres?.join(', ')}</span>
                 {details.runtime > 0 && <span>{details.runtime}m</span>}
               </div>
 
               <UserScore score={details.vote_average} />
               
-              <div className="action-buttons" style={{ display: 'flex', gap: '15px', marginBottom: '35px', flexWrap: 'wrap' }}>
+              <div className="action-buttons">
                 <button 
                   className="btn-watch-now" 
                   onClick={() => setShowStreaming(true)}
-                  style={{ padding: '12px 28px', background: 'white', color: 'black', border: 'none', borderRadius: '4px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1rem' }}
                 >
                   <i className="fas fa-play"></i> Watch Now
                 </button>
@@ -205,25 +197,23 @@ const MovieDetail = ({ user }) => {
                   <button 
                     className="btn-trailer" 
                     onClick={() => setShowTrailer(true)}
-                    style={{ padding: '12px 28px', background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '4px', fontWeight: '700', cursor: 'pointer', fontSize: '1rem', backdropFilter: 'blur(10px)' }}
                   >
                     Trailer
                   </button>
                 )}
 
                 <button 
-                  className="btn-watchlist" 
+                  className={`btn-watchlist ${isInWatchlist ? 'in-watchlist' : 'not-in-watchlist'}`}
                   onClick={toggleWatchlist}
-                  style={{ padding: '12px 20px', background: isInWatchlist ? 'rgba(229, 9, 20, 0.3)' : 'rgba(0,0,0,0.4)', color: isInWatchlist ? '#ff4d4d' : 'white', border: isInWatchlist ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.5)', borderRadius: '4px', fontWeight: '600', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   <i className={`fas ${isInWatchlist ? 'fa-check' : 'fa-plus'}`}></i>
                   <span>{isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
                 </button>
               </div>
               
-              {details.tagline && <p style={{ fontStyle: 'italic', opacity: 0.7, marginBottom: '20px', fontSize: '1.2rem' }}>"{details.tagline}"</p>}
-              <h3 style={{ fontSize: '1.4rem', marginBottom: '10px', fontWeight: '700' }}>Overview</h3>
-              <p style={{ lineHeight: '1.6', fontSize: '1.1rem', marginBottom: '30px', opacity: 0.9, maxWidth: '800px' }}>{details.overview}</p>
+              {details.tagline && <p className="movie-tagline">"{details.tagline}"</p>}
+              <h3 className="movie-overview-title">Overview</h3>
+              <p className="movie-overview-text">{details.overview}</p>
             </div>
           </div>
         </div>
@@ -299,9 +289,9 @@ const MovieDetail = ({ user }) => {
 
       {/* Streaming Modal */}
       {showStreaming && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(5px)' }} onClick={() => setShowStreaming(false)}>
-          <div style={{ width: '100%', maxWidth: '500px', background: '#181818', borderRadius: '12px', position: 'relative', padding: '40px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)', border: '1px solid #333' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowStreaming(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#888', fontSize: '1.2rem', cursor: 'pointer' }}><i className="fas fa-times"></i></button>
+        <div className="modal-overlay" onClick={() => setShowStreaming(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => setShowStreaming(false)}><i className="fas fa-times"></i></button>
             <h2 style={{ marginBottom: '30px', fontSize: '1.8rem', textAlign: 'center' }}>Where to Watch</h2>
             {(streaming_providers && (streaming_providers.flatrate || streaming_providers.buy || streaming_providers.rent)) ? (
               <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
@@ -326,11 +316,11 @@ const MovieDetail = ({ user }) => {
       )}
 
       {showTrailer && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setShowTrailer(false)}>
-          <div style={{ width: '100%', maxWidth: '900px', position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowTrailer(false)} style={{ position: 'absolute', top: '-40px', right: '0', background: 'none', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer' }}><i className="fas fa-times"></i></button>
-            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden' }}>
-              <iframe style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }} src={`https://www.youtube.com/embed/${trailer_key}?autoplay=1`} title="Movie Trailer" allow="autoplay; encrypted-media" allowFullScreen></iframe>
+        <div className="modal-overlay" onClick={() => setShowTrailer(false)}>
+          <div className="trailer-modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close-btn" style={{ top: '-40px', right: '0', color: 'white' }} onClick={() => setShowTrailer(false)}><i className="fas fa-times"></i></button>
+            <div className="video-responsive">
+              <iframe src={`https://www.youtube.com/embed/${trailer_key}?autoplay=1`} title="Movie Trailer" allow="autoplay; encrypted-media" allowFullScreen></iframe>
             </div>
           </div>
         </div>
