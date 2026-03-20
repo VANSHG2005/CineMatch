@@ -157,7 +157,17 @@ body {
   overflow-y: auto;
   padding: 12px 0;
   border: 1px solid #333;
-  margin-top: 10px;
+}
+
+/* Bridge the gap between nav-link and dropdown-menu */
+.nav-item-dropdown::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  display: block;
 }
 
 .nav-item-dropdown:hover .dropdown-menu {

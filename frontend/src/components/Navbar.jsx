@@ -49,7 +49,10 @@ const Navbar = ({ user, setUser }) => {
   };
 
   const toggleDropdown = (name) => {
-    setActiveDropdown(activeDropdown === name ? null : name);
+    // Only toggle on mobile screens (where mobile menu is active)
+    if (window.innerWidth <= 1100) {
+      setActiveDropdown(activeDropdown === name ? null : name);
+    }
   };
 
   const closeMenu = () => {
