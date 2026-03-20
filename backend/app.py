@@ -2,6 +2,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from werkzeug.exceptions import HTTPException
 from config import Config
 from models.user import db, User
 from routes.api_routes import api
@@ -57,6 +58,15 @@ def create_app():
     def handle_exception(e):
         import traceback
         import sys
+        
+        # If it's already an HTTP error (like 404), let it be
+        if isinstance(e, HTTPException):
+            return jsonify({
+                "error": e.name, 
+                "message": e.description,
+                "type": e.__class__.__name__
+            }), e.code
+
         print("--- DEBUG: SERVER ERROR ---", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         return jsonify({
@@ -72,7 +82,7 @@ def create_app():
     
     @app.route('/')
     def index():
-        return jsonify({"message": "CineMatch API is live", "endpoints": "/api"}), 200
+        return jsonify({"message": "CineMatch API is live"}), 200
     
     # Initializing the ML recommendation engine here
     with app.app_context():
@@ -85,7 +95,8 @@ def create_app():
             print(f"Error during startup: {e}")
     
     # All our main API logic is inside this blueprint
-    app.register_blueprint(api, url_prefix='/api')
+    # We register without prefix because the frontend expects routes at root
+    app.register_blueprint(api)
     
     return app
 
