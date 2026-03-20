@@ -37,7 +37,7 @@ const Watchlist = ({ user }) => {
       try {
         await watchlistApi.remove(id);
         setItems(items.filter(item => item.id !== id));
-      } catch (err) {
+      } catch {
         alert('Failed to remove item');
       }
     }
@@ -60,7 +60,7 @@ const Watchlist = ({ user }) => {
           </Link>
         </div>
       ) : (
-        <div className="content-grid">
+        <div className="small-card-grid">
           {items.map(item => (
             <div key={item.id} className="watchlist-item-wrapper">
               <MovieCard 

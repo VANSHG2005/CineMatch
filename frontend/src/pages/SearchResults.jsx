@@ -67,7 +67,7 @@ const SearchResults = () => {
                 </span>
               </div>
 
-              <div className="content-row">
+              <div className="small-card-grid">
                 {results.movies.map((movie) => (
                   <MovieCard key={movie.id} item={movie} type="movie" />
                 ))}
@@ -94,7 +94,7 @@ const SearchResults = () => {
                 </span>
               </div>
 
-              <div className="content-row">
+              <div className="small-card-grid">
                 {results.tv_shows.map((tv) => (
                   <MovieCard key={tv.id} item={tv} type="tv" />
                 ))}

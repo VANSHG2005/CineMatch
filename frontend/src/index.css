@@ -686,7 +686,7 @@ body {
 .meta-date {
   border: 1px solid rgba(255,255,255,0.3);
   padding: 2px 8px;
-  borderRadius: 4px;
+  border-radius: 4px;
 }
 
 .action-buttons {
@@ -1043,6 +1043,7 @@ body {
   margin-bottom: 15px;
   background: linear-gradient(to right, #fff 20%, #e50914 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -2px;
 }
@@ -1223,4 +1224,123 @@ body {
 .content-row::-webkit-scrollbar-thumb {
   background: #444;
   border-radius: 10px;
+}
+
+.small-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.small-card-grid > * {
+  width: 160px;
+  flex: 0 0 160px;
+}
+
+@media (max-width: 600px) {
+  .small-card-grid > * {
+    width: 130px;
+    flex: 0 0 130px;
+  }
+}
+
+.scroll-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(20, 20, 20, 0.92);
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  transition: background 0.2s, transform 0.2s;
+}
+.scroll-arrow:hover {
+  background: #e50914;
+  transform: translateY(-50%) scale(1.1);
+}
+.scroll-arrow-left  { left: -16px; }
+.scroll-arrow-right { right: -16px; }
+
+/* --- 2. Filter bar --- */
+.filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding: 18px 20px;
+  background: #111;
+  border-radius: 10px;
+  border: 1px solid #1e1e1e;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.filter-group label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #666;
+}
+.filter-group select {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: white;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  min-width: 130px;
+  transition: border-color 0.2s;
+}
+.filter-group select:focus,
+.filter-group select:hover {
+  border-color: #e50914;
+}
+
+.filter-clear-btn {
+  background: rgba(229, 9, 20, 0.1);
+  border: 1px solid rgba(229, 9, 20, 0.3);
+  color: #e50914;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-weight: 700;
+  align-self: flex-end;
+  transition: all 0.2s;
+}
+.filter-clear-btn:hover {
+  background: rgba(229, 9, 20, 0.2);
+}
+
+/* --- 3. small-card-grid (consistent poster sizing) --- */
+.small-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+.small-card-grid > * {
+  width: 160px;
+  flex: 0 0 160px;
+}
+@media (max-width: 600px) {
+  .small-card-grid > * {
+    width: 130px;
+    flex: 0 0 130px;
+  }
 }
