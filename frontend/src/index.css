@@ -1506,3 +1506,28 @@ body { background-color: var(--bg-color); color: var(--text-color); transition: 
 
 /* ── Watched badge ── */
 .watchlist-item-wrapper { display: flex; flex-direction: column; }
+
+/* Light theme overrides for elements using hardcoded dark colors */
+[data-theme="light"] .navbar {
+  background-color: rgba(255, 255, 255, 0.97) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+[data-theme="light"] .nav-menu {
+  background-color: rgba(255, 255, 255, 0.97);
+}
+[data-theme="light"] .form-input {
+  background: #ffffff;
+  color: #111111;
+  border-color: #cccccc;
+}
+[data-theme="light"] .form-input::placeholder {
+  color: #999999;
+}
+[data-theme="light"] .auth-card,
+[data-theme="light"] .movie-hero,
+[data-theme="light"] .filter-bar {
+  background: #ffffff;
+}
+[data-theme="light"] .content-card .content-title {
+  color: #111111;
+}
