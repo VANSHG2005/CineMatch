@@ -555,7 +555,7 @@ def toggle_watched(item_id):
 # --- Feature 8: OTP email verification ---
 
 from flask_mail import Message as MailMessage
-from extensions import mail
+# mail imported inside send_otp() to avoid circular import
 import datetime
 
 # In-memory OTP store: { email: { otp, expires, name } }
@@ -581,7 +581,14 @@ def send_otp():
         'expires': datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
     }
 
+    mail_sent = False
     try:
+        # Check mail is configured before attempting send
+        username = current_app.config.get('MAIL_USERNAME')
+        password = current_app.config.get('MAIL_PASSWORD')
+        if not username or not password:
+            raise ValueError("Mail credentials not configured")
+
         msg = MailMessage(
             subject='Your CineMatch verification code',
             recipients=[email],
@@ -592,17 +599,24 @@ def send_otp():
               <div style="font-size:2.5rem;font-weight:800;letter-spacing:12px;text-align:center;
                           background:#1a1a1a;border-radius:8px;padding:20px;margin-bottom:24px;
                           color:#fff;border:1px solid #333;">{code}</div>
-              <p style="color:#666;font-size:0.85rem;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
+              <p style="color:#666;font-size:0.85rem;">This code expires in 10 minutes.</p>
             </div>
             """
         )
-        mail.send(msg)
+        from extensions import mail as mail_ext
+        mail_ext.send(msg)
+        mail_sent = True
+        print(f"[OTP] Email sent to {email}")
     except Exception as e:
-        print(f"Mail send failed: {e}")
-        # Dev fallback: print to logs so you can test without SMTP
+        print(f"[OTP] Mail send failed ({e}), using dev fallback")
         print(f"[DEV OTP] {email} → {code}")
 
-    return jsonify({'message': 'OTP sent'}), 200
+    # Always return 200 — OTP is stored in memory regardless of mail success
+    # Frontend can still verify via /auth/verify-otp
+    return jsonify({
+        'message': 'OTP sent' if mail_sent else 'OTP generated (check server logs)',
+        'mail_sent': mail_sent
+    }), 200
 
 
 @api.route('/auth/verify-otp', methods=['POST'])
