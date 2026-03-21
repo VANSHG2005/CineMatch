@@ -554,8 +554,8 @@ def toggle_watched(item_id):
 
 # --- Feature 8: OTP email verification ---
 
-from flask_mail import Message as MailMessage
-# mail imported inside send_otp() to avoid circular import
+import os
+# mail/smtp imported inside send_otp() to avoid circular import
 import datetime
 
 # In-memory OTP store: { email: { otp, expires, name } }
@@ -569,7 +569,6 @@ def send_otp():
     if not email:
         return jsonify({'error': 'Email required'}), 400
 
-    # Block if email already registered
     from models.user import User
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Email already registered'}), 400
@@ -582,41 +581,96 @@ def send_otp():
     }
 
     mail_sent = False
-    try:
-        # Check mail is configured before attempting send
-        username = current_app.config.get('MAIL_USERNAME')
-        password = current_app.config.get('MAIL_PASSWORD')
-        if not username or not password:
-            raise ValueError("Mail credentials not configured")
 
-        msg = MailMessage(
-            subject='Your CineMatch verification code',
-            recipients=[email],
-            html=f"""
-            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#141414;color:#fff;border-radius:12px;padding:32px;border:1px solid #333;">
-              <h2 style="color:#e50914;margin-bottom:8px;">CineMatch</h2>
-              <p style="color:#aaa;margin-bottom:24px;">Hi {name}, here is your verification code:</p>
-              <div style="font-size:2.5rem;font-weight:800;letter-spacing:12px;text-align:center;
-                          background:#1a1a1a;border-radius:8px;padding:20px;margin-bottom:24px;
-                          color:#fff;border:1px solid #333;">{code}</div>
-              <p style="color:#666;font-size:0.85rem;">This code expires in 10 minutes.</p>
+    # Try Resend API first (most reliable, free tier = 3000 emails/month)
+    resend_api_key = current_app.config.get('RESEND_API_KEY') or os.environ.get('RESEND_API_KEY')
+    if resend_api_key:
+        try:
+            import requests as http_requests
+            resp = http_requests.post(
+                'https://api.resend.com/emails',
+                headers={
+                    'Authorization': f'Bearer {resend_api_key}',
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'from': 'CineMatch <onboarding@resend.dev>',
+                    'to': [email],
+                    'subject': 'Your CineMatch verification code',
+                    'html': f"""
+                    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;
+                                background:#141414;color:#fff;border-radius:12px;
+                                padding:32px;border:1px solid #333;">
+                      <h2 style="color:#e50914;margin:0 0 8px;">CineMatch</h2>
+                      <p style="color:#aaa;margin:0 0 24px;">Hi {name}, your verification code is:</p>
+                      <div style="font-size:2.5rem;font-weight:800;letter-spacing:12px;
+                                  text-align:center;background:#1a1a1a;border-radius:8px;
+                                  padding:20px;margin-bottom:24px;color:#fff;
+                                  border:1px solid #333;">{code}</div>
+                      <p style="color:#666;font-size:0.85rem;">Expires in 10 minutes.</p>
+                    </div>
+                    """
+                },
+                timeout=10
+            )
+            if resp.status_code in (200, 201):
+                mail_sent = True
+                print(f"[OTP] Sent via Resend to {email}")
+            else:
+                print(f"[OTP] Resend failed: {resp.status_code} {resp.text}")
+        except Exception as e:
+            print(f"[OTP] Resend error: {e}")
+
+    # Fallback: Gmail SMTP via Flask-Mail
+    if not mail_sent:
+        try:
+            username = current_app.config.get('MAIL_USERNAME')
+            password = current_app.config.get('MAIL_PASSWORD')
+            if not username or not password:
+                raise ValueError("Mail credentials not configured")
+
+            import smtplib
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = 'Your CineMatch verification code'
+            msg['From'] = f'CineMatch <{username}>'
+            msg['To'] = email
+            html_body = f"""
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;
+                        background:#141414;color:#fff;border-radius:12px;
+                        padding:32px;border:1px solid #333;">
+              <h2 style="color:#e50914;margin:0 0 8px;">CineMatch</h2>
+              <p style="color:#aaa;margin:0 0 24px;">Hi {name}, your verification code is:</p>
+              <div style="font-size:2.5rem;font-weight:800;letter-spacing:12px;
+                          text-align:center;background:#1a1a1a;border-radius:8px;
+                          padding:20px;margin-bottom:24px;color:#fff;
+                          border:1px solid #333;">{code}</div>
+              <p style="color:#666;font-size:0.85rem;">Expires in 10 minutes.</p>
             </div>
             """
-        )
-        from extensions import mail as mail_ext
-        mail_ext.send(msg)
-        mail_sent = True
-        print(f"[OTP] Email sent to {email}")
-    except Exception as e:
-        print(f"[OTP] Mail send failed ({e}), using dev fallback")
-        print(f"[DEV OTP] {email} → {code}")
+            msg.attach(MIMEText(html_body, 'html'))
 
-    # Always return 200 — OTP is stored in memory regardless of mail success
-    # Frontend can still verify via /auth/verify-otp
-    return jsonify({
-        'message': 'OTP sent' if mail_sent else 'OTP generated (check server logs)',
-        'mail_sent': mail_sent
-    }), 200
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(username, password)
+                server.sendmail(username, email, msg.as_string())
+
+            mail_sent = True
+            print(f"[OTP] Sent via Gmail SMTP to {email}")
+        except Exception as e:
+            print(f"[OTP] Gmail SMTP failed: {e}")
+
+    # Always log OTP for debugging
+    print(f"[DEV OTP] {email} → {code} (mail_sent={mail_sent})")
+
+    if not mail_sent:
+        # Still store the OTP and return success — frontend fallback will handle it
+        return jsonify({'message': 'OTP generated', 'mail_sent': False}), 200
+
+    return jsonify({'message': 'OTP sent', 'mail_sent': True}), 200
 
 
 @api.route('/auth/verify-otp', methods=['POST'])
