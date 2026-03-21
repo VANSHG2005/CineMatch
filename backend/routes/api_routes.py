@@ -654,3 +654,147 @@ def verify_otp_signup():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Could not create account.'}), 500
+
+# ══════════════════════════════════════════════════════════════════════
+# NOTIFICATIONS ROUTES
+# ══════════════════════════════════════════════════════════════════════
+
+from models.user import Notification
+
+@api.route('/notifications', methods=['GET'])
+@login_required
+def get_notifications():
+    try:
+        notifs = Notification.query.filter_by(user_id=current_user.id)\
+            .order_by(Notification.created_at.desc()).limit(30).all()
+        unread = Notification.query.filter_by(user_id=current_user.id, read=False).count()
+        return jsonify({
+            'notifications': [n.to_dict() for n in notifs],
+            'unread_count': unread
+        })
+    except Exception as e:
+        print(f"Notifications error: {e}")
+        return jsonify({'notifications': [], 'unread_count': 0})
+
+@api.route('/notifications/read-all', methods=['POST'])
+@login_required
+def mark_all_read():
+    Notification.query.filter_by(user_id=current_user.id, read=False)\
+        .update({'read': True})
+    db.session.commit()
+    return jsonify({'message': 'All notifications marked as read'})
+
+@api.route('/notifications/<int:notif_id>/read', methods=['PATCH'])
+@login_required
+def mark_read(notif_id):
+    notif = Notification.query.filter_by(id=notif_id, user_id=current_user.id).first()
+    if not notif:
+        return jsonify({'error': 'Not found'}), 404
+    notif.read = True
+    db.session.commit()
+    return jsonify(notif.to_dict())
+
+
+# ══════════════════════════════════════════════════════════════════════
+# FRIENDS / FOLLOWS ROUTES
+# ══════════════════════════════════════════════════════════════════════
+
+from models.user import follows
+from sqlalchemy import and_
+
+@api.route('/users/search', methods=['GET'])
+@login_required
+def search_users():
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify([])
+    results = User.query.filter(
+        (User.name.ilike(f'%{q}%') | User.email.ilike(f'%{q}%')),
+        User.id != current_user.id
+    ).limit(10).all()
+    # Get IDs the current user follows
+    following_rows = db.session.execute(
+        follows.select().where(follows.c.follower_id == current_user.id)
+    ).fetchall()
+    following_ids = {r.followed_id for r in following_rows}
+    return jsonify([{**u.to_dict(), 'is_following': u.id in following_ids} for u in results])
+
+@api.route('/users/<user_id>/follow', methods=['POST'])
+@login_required
+def follow_user(user_id):
+    target = db.session.get(User, user_id)
+    if not target or target.id == current_user.id:
+        return jsonify({'error': 'Invalid user'}), 400
+    # Check already following
+    existing = db.session.execute(
+        follows.select().where(and_(
+            follows.c.follower_id == current_user.id,
+            follows.c.followed_id == user_id
+        ))
+    ).first()
+    if existing:
+        return jsonify({'error': 'Already following'}), 400
+    db.session.execute(follows.insert().values(
+        follower_id=current_user.id, followed_id=user_id
+    ))
+    # Notify the followed user
+    try:
+        notif = Notification(
+            user_id=target.id, type='new_follower',
+            title=f'{current_user.name} started following you!',
+            body=f'{current_user.name} is now following you on CineMatch.',
+            link='/friends'
+        )
+        db.session.add(notif)
+    except Exception:
+        pass
+    db.session.commit()
+    return jsonify({'message': f'Now following {target.name}'})
+
+@api.route('/users/<user_id>/unfollow', methods=['DELETE'])
+@login_required
+def unfollow_user(user_id):
+    db.session.execute(
+        follows.delete().where(and_(
+            follows.c.follower_id == current_user.id,
+            follows.c.followed_id == user_id
+        ))
+    )
+    db.session.commit()
+    return jsonify({'message': 'Unfollowed'})
+
+@api.route('/friends', methods=['GET'])
+@login_required
+def get_friends():
+    following_rows = db.session.execute(
+        follows.select().where(follows.c.follower_id == current_user.id)
+    ).fetchall()
+    follower_rows = db.session.execute(
+        follows.select().where(follows.c.followed_id == current_user.id)
+    ).fetchall()
+    following_ids = {r.followed_id for r in following_rows}
+    follower_ids = {r.follower_id for r in follower_rows}
+    following_users = User.query.filter(User.id.in_(following_ids)).all()
+    follower_users = User.query.filter(User.id.in_(follower_ids)).all()
+    return jsonify({
+        'following': [{**u.to_dict(), 'is_following': True} for u in following_users],
+        'followers': [{**u.to_dict(), 'is_following': u.id in following_ids} for u in follower_users]
+    })
+
+@api.route('/friends/<user_id>/watchlist', methods=['GET'])
+@login_required
+def friend_watchlist(user_id):
+    target = db.session.get(User, user_id)
+    if not target:
+        return jsonify({'error': 'User not found'}), 404
+    # Must be mutual follows
+    i_follow = db.session.execute(follows.select().where(and_(
+        follows.c.follower_id == current_user.id, follows.c.followed_id == user_id
+    ))).first()
+    they_follow = db.session.execute(follows.select().where(and_(
+        follows.c.follower_id == user_id, follows.c.followed_id == current_user.id
+    ))).first()
+    if not (i_follow and they_follow):
+        return jsonify({'error': 'You can only view watchlists of mutual friends'}), 403
+    items = WatchlistItem.query.filter_by(user_id=user_id).order_by(WatchlistItem.added_on.desc()).all()
+    return jsonify({'user': target.to_dict(), 'watchlist': [i.to_dict() for i in items]})

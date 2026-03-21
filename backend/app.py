@@ -7,7 +7,10 @@ from config import Config
 from models.user import db, User
 from routes.api_routes import api
 from services.recommendation_service import recommendation_service
-from services.notification_service import notification_service
+try:
+    from services.notification_service import notification_service
+except ImportError:
+    notification_service = None
 from extensions import mail
 import os
 
@@ -69,15 +72,6 @@ def _run_startup_migrations(app):
         db.session.rollback()
         print(f"[migration] comments.rating skipped: {e}")
 
-    # Fix 3b: Add edited_at column to comments (edit feature)
-    try:
-        db.session.execute(text('ALTER TABLE comments ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP WITHOUT TIME ZONE;'))
-        db.session.commit()
-        print("[migration] comments.edited_at column ready.")
-    except Exception as e:
-        db.session.rollback()
-        print(f"[migration] comments.edited_at skipped: {e}")
-
     # Fix 4: Add watched column to watchlist_items (Feature 6 — watched toggle)
     try:
         db.session.execute(text('ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS watched BOOLEAN NOT NULL DEFAULT FALSE;'))
@@ -110,7 +104,7 @@ def create_app():
             "http://127.0.0.1:5173"
          ],
          allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
     
     # Fire up the DB and Migrations
     db.init_app(app)
