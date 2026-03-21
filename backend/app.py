@@ -69,6 +69,15 @@ def _run_startup_migrations(app):
         db.session.rollback()
         print(f"[migration] comments.rating skipped: {e}")
 
+    # Fix 3b: Add edited_at column to comments (edit feature)
+    try:
+        db.session.execute(text('ALTER TABLE comments ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP WITHOUT TIME ZONE;'))
+        db.session.commit()
+        print("[migration] comments.edited_at column ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] comments.edited_at skipped: {e}")
+
     # Fix 4: Add watched column to watchlist_items (Feature 6 — watched toggle)
     try:
         db.session.execute(text('ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS watched BOOLEAN NOT NULL DEFAULT FALSE;'))

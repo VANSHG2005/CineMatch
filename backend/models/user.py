@@ -1,124 +1,194 @@
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from flask import Flask, jsonify
+from flask_cors import CORS
+from flask_login import LoginManager
+from flask_migrate import Migrate
+from werkzeug.exceptions import HTTPException
+from config import Config
+from models.user import db, User
+from routes.api_routes import api
+from services.recommendation_service import recommendation_service
+from services.notification_service import notification_service
+from extensions import mail
+import os
 
-db = SQLAlchemy()
+def _run_startup_migrations(app):
+    """
+    Runs lightweight DB migrations on every startup.
+    All operations are idempotent — safe to run repeatedly.
+    """
+    from sqlalchemy import text
 
-class User(UserMixin, db.Model):
-    __tablename__ = 'user'
+    # Step 1: Create all tables defined in models if they don't exist yet.
+    # This handles a brand-new empty database (e.g. fresh Render PostgreSQL instance).
+    print("Ensuring all model tables exist...")
+    try:
+        db.create_all()
+        print("[migration] db.create_all() complete.")
+    except Exception as e:
+        print(f"[migration] db.create_all() error: {e}")
+
+    print("Running startup DB migrations...")
+
+    # Fix 1: Ensure password_hash column is TEXT (was VARCHAR(128), too short for bcrypt)
+    try:
+        db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+        db.session.commit()
+        print("[migration] password_hash column set to TEXT.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] password_hash already OK or skipped: {e}")
+
+    # Fix 2: Create comments table if it doesn't exist
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS comments (
+                id         SERIAL PRIMARY KEY,
+                user_id    VARCHAR(36) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                item_id    INTEGER NOT NULL,
+                item_type  VARCHAR(10) NOT NULL,
+                text       TEXT NOT NULL,
+                created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+            );
+        """))
+        db.session.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_comments_item
+            ON comments (item_id, item_type);
+        """))
+        db.session.commit()
+        print("[migration] comments table ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] comments table error: {e}")
+
+    # Fix 3: Add rating column to comments (Feature 5 — star ratings)
+    try:
+        db.session.execute(text('ALTER TABLE comments ADD COLUMN IF NOT EXISTS rating SMALLINT;'))
+        db.session.commit()
+        print("[migration] comments.rating column ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] comments.rating skipped: {e}")
+
+    # Fix 3b: Add edited_at column to comments (edit feature)
+    try:
+        db.session.execute(text('ALTER TABLE comments ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP WITHOUT TIME ZONE;'))
+        db.session.commit()
+        print("[migration] comments.edited_at column ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] comments.edited_at skipped: {e}")
+
+    # Fix 4: Add watched column to watchlist_items (Feature 6 — watched toggle)
+    try:
+        db.session.execute(text('ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS watched BOOLEAN NOT NULL DEFAULT FALSE;'))
+        db.session.commit()
+        print("[migration] watchlist_items.watched column ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] watchlist_items.watched skipped: {e}")
+
+    print("Startup migrations complete.")
+
+
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(Config)
     
-    id = db.Column(db.String(100), primary_key=True)
-    name = db.Column(db.String(100))
-    email = db.Column(db.String(100), unique=True)
-    profile_pic = db.Column(db.String(200))
-    password_hash = db.Column(db.Text)
+    # Just making sure the instance folder exists so SQLite doesn't crash on me
+    try:
+        os.makedirs(app.instance_path, exist_ok=True)
+    except Exception as e:
+        print(f"Had some trouble creating the instance path: {e}")
     
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+    # Setup CORS - needed for Vercel/Render communication
+    # Make sure to include both localhost and the production URL
+    CORS(app, 
+         supports_credentials=True, 
+         origins=[
+            "https://cine-match-zeta.vercel.app",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+         ],
+         allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
     
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+    # Fire up the DB and Migrations
+    db.init_app(app)
+    mail.init_app(app)
+    migrate = Migrate(app, db)
 
-    @property
-    def following(self):
-        from sqlalchemy import select
-        return User.query.join(follows, follows.c.followed_id == User.id)\
-            .filter(follows.c.follower_id == self.id).all()
-
-    @property
-    def followers(self):
-        return User.query.join(follows, follows.c.follower_id == User.id)\
-            .filter(follows.c.followed_id == self.id).all()
+    # Run DB migrations right after db is bound — creates missing tables and fixes column types.
+    # Safe to run on every deploy (all ops are idempotent).
+    with app.app_context():
+        _run_startup_migrations(app)
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email': self.email,
-            'profile_pic': self.profile_pic
-        }
-
-class WatchlistItem(db.Model):
-    __tablename__ = 'watchlist_items'
+    # Just a small check to see which DB we're actually hitting (dev vs prod)
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if 'sqlite' in db_uri:
+        print(f"NOTE: Using SQLite for local dev: {db_uri}")
+    elif 'postgresql' in db_uri:
+        # Don't want to log the full URL with password, so just the end
+        safe_uri = db_uri.split('@')[-1] if '@' in db_uri else db_uri
+        print(f"SUCCESS: Connected to PostgreSQL (Production): {safe_uri}")
     
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
-    item_id = db.Column(db.Integer, nullable=False)
-    item_type = db.Column(db.String(10), nullable=False)  # 'movie' or 'tv'
-    title = db.Column(db.String(200), nullable=False)
-    poster_path = db.Column(db.String(200))
-    added_on = db.Column(db.DateTime, default=datetime.utcnow)
-    watched = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    # Flask-Login setup
+    login_manager = LoginManager()
+    login_manager.init_app(app)
     
-    user = db.relationship('User', backref=db.backref('watchlist', lazy=True))
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'item_id': self.item_id,
-            'item_type': self.item_type,
-            'title': self.title,
-            'poster_path': self.poster_path,
-            'added_on': self.added_on.isoformat(),
-            'watched': self.watched or False
-        }
-
-class Comment(db.Model):
-    __tablename__ = 'comments'
+    @login_manager.user_loader
+    def load_user(user_id):
+        # Using db.session.get because it's the newer way in SQLAlchemy
+        return db.session.get(User, user_id)
     
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
-    item_id = db.Column(db.Integer, nullable=False)
-    item_type = db.Column(db.String(10), nullable=False) # 'movie' or 'tv'
-    text = db.Column(db.Text, nullable=False)
-    rating = db.Column(db.SmallInteger, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Custom error handler so the frontend doesn't just get a blank 500
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        import traceback
+        import sys
+        
+        # If it's already an HTTP error (like 404), let it be
+        if isinstance(e, HTTPException):
+            return jsonify({
+                "error": e.name, 
+                "message": e.description,
+                "type": e.__class__.__name__
+            }), e.code
+
+        print("--- DEBUG: SERVER ERROR ---", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({
+            "error": "Something went wrong on the server", 
+            "message": str(e),
+            "type": e.__class__.__name__
+        }), 500
     
-    user = db.relationship('User', backref=db.backref('comments', lazy=True))
+    # Simple routes for checking if the server is alive
+    @app.route('/health')
+    def health():
+        return jsonify({"status": "all good", "version": "1.0.1"}), 200
+    
+    @app.route('/')
+    def index():
+        return jsonify({"message": "CineMatch API is live"}), 200
+    
+    # Initializing the ML recommendation engine here
+    with app.app_context():
+        print("Starting up the recommendation engine...")
+        try:
+            # We use lazy loading inside here to save memory on start
+            recommendation_service.init_app(app)
+            print("Backend logic is fully loaded.")
+        except Exception as e:
+            print(f"Error during startup: {e}")
+    
+    # All our main API logic is inside this blueprint
+    # We register without prefix because the frontend expects routes at root
+    app.register_blueprint(api)
+    
+    return app
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'user_name': self.user.name if self.user else "Unknown User",
-            'user_pic': self.user.profile_pic if self.user else "https://via.placeholder.com/150",
-            'item_id': self.item_id,
-            'text': self.text,
-            'rating': self.rating,
-            'created_at': self.created_at.isoformat()
-        }
+app = create_app()
 
-# ── Follow relationship (Feature 3: Friends) ──────────────────────────────────
-follows = db.Table('follows',
-    db.Column('follower_id', db.String(100), db.ForeignKey('user.id'), primary_key=True),
-    db.Column('followed_id', db.String(100), db.ForeignKey('user.id'), primary_key=True),
-    db.Column('created_at', db.DateTime, default=datetime.utcnow)
-)
-
-
-class Notification(db.Model):
-    """Feature 2: in-app notifications (e.g. new season alerts, follows)"""
-    __tablename__ = 'notifications'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
-    type = db.Column(db.String(30), nullable=False)   # 'new_season' | 'new_follower' | 'friend_watchlist'
-    title = db.Column(db.String(200), nullable=False)
-    body = db.Column(db.Text, nullable=False)
-    link = db.Column(db.String(300))                  # e.g. /tv/1234
-    read = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic'))
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'type': self.type,
-            'title': self.title,
-            'body': self.body,
-            'link': self.link,
-            'read': self.read,
-            'created_at': self.created_at.isoformat()
-        }
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)

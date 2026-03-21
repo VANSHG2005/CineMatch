@@ -105,21 +105,8 @@ def get_movie_detail(movie_id):
         first_region = next(iter(all_providers))
         providers = all_providers.get(first_region)
     
-    # Extract TMDB recommendations (much better quality than /similar)
-    # Merge /recommendations + /similar, deduplicate, filter low quality
-    tmdb_recs_raw = movie_details.get('recommendations', {}).get('results', [])
-    api_similar_raw = movie_details.get('similar', {}).get('results', [])
-    seen_ids = {movie_details.get('id')}
-    api_similar = []
-    for item in (tmdb_recs_raw + api_similar_raw):
-        if (item.get('id') not in seen_ids
-                and item.get('poster_path')
-                and item.get('vote_average', 0) >= 5.0
-                and item.get('vote_count', 0) >= 20):
-            seen_ids.add(item['id'])
-            api_similar.append(item)
-        if len(api_similar) >= 12:
-            break
+    # Extract API similar movies
+    api_similar = movie_details.get('similar', {}).get('results', [])[:12]
 
     # Extract related movies (franchise)
     related_movies = []
@@ -138,16 +125,10 @@ def get_movie_detail(movie_id):
             print(f"Error fetching collection {collection_id}: {e}")
             related_movies = []
 
-    # ML recommendations — deduplicated against api_similar, poster required
+    # ML recommendations
     ml_recommendations = []
     if movie_details.get('title'):
-        _, raw_ml = recommendation_service.get_movie_recommendations(movie_details['title'])
-        api_similar_ids = {i.get('id') for i in api_similar}
-        for rec in raw_ml:
-            if rec.get('id') not in api_similar_ids and rec.get('poster_path'):
-                ml_recommendations.append(rec)
-            if len(ml_recommendations) >= 12:
-                break
+        _, ml_recommendations = recommendation_service.get_movie_recommendations(movie_details['title'])
     
     # Check if in watchlist
     in_watchlist = False
@@ -161,7 +142,6 @@ def get_movie_detail(movie_id):
     movie_details.pop('videos', None)
     movie_details.pop('watch/providers', None)
     movie_details.pop('similar', None)
-    movie_details.pop('recommendations', None)
 
     # Convert genres to list of names
     movie_details['genres'] = [g['name'] for g in movie_details.get('genres', [])]
@@ -202,31 +182,13 @@ def get_tv_detail(tv_id):
     if not providers:
         providers = tv_details.get('watch/providers', {}).get('results', {}).get('US')
     
-    # Extract TMDB recommendations + similar, merge and deduplicate
-    tmdb_recs_raw = tv_details.get('recommendations', {}).get('results', [])
-    api_similar_raw = tv_details.get('similar', {}).get('results', [])
-    seen_ids = {tv_details.get('id')}
-    api_similar = []
-    for item in (tmdb_recs_raw + api_similar_raw):
-        if (item.get('id') not in seen_ids
-                and item.get('poster_path')
-                and item.get('vote_average', 0) >= 5.0
-                and item.get('vote_count', 0) >= 20):
-            seen_ids.add(item['id'])
-            api_similar.append(item)
-        if len(api_similar) >= 12:
-            break
+    # Extract API similar
+    api_similar = tv_details.get('similar', {}).get('results', [])[:12]
 
-    # ML recommendations — deduplicated against api_similar, poster required
+    # ML recommendations
     ml_recommendations = []
     if tv_details.get('name'):
-        _, raw_ml = recommendation_service.get_tv_recommendations(tv_details['name'])
-        api_similar_ids = {i.get('id') for i in api_similar}
-        for rec in raw_ml:
-            if rec.get('id') not in api_similar_ids and rec.get('poster_path'):
-                ml_recommendations.append(rec)
-            if len(ml_recommendations) >= 12:
-                break
+        _, ml_recommendations = recommendation_service.get_tv_recommendations(tv_details['name'])
     
     # Check if in watchlist
     in_watchlist = False
@@ -240,7 +202,6 @@ def get_tv_detail(tv_id):
     tv_details.pop('videos', None)
     tv_details.pop('watch/providers', None)
     tv_details.pop('similar', None)
-    tv_details.pop('recommendations', None)
 
     # Convert genres to list of names
     tv_details['genres'] = [g['name'] for g in tv_details.get('genres', [])]
@@ -479,16 +440,19 @@ def get_my_activity():
         result = []
         for c in comments:
             d = c.to_dict()
-            # Try to fetch the title from TMDB to display in profile
+            # Ensure item_id is always present (used by frontend to build the link)
+            d['item_id'] = c.item_id
+            d['item_type'] = c.item_type
+            # Fetch title from TMDB
             try:
                 if c.item_type == 'movie':
                     details = TMDBService.get_movie_details(c.item_id)
-                    d['item_title'] = details.get('title') if details else None
+                    d['item_title'] = details.get('title') if details else f'Movie #{c.item_id}'
                 else:
                     details = TMDBService.get_tv_details(c.item_id)
-                    d['item_title'] = details.get('name') if details else None
+                    d['item_title'] = details.get('name') if details else f'Show #{c.item_id}'
             except Exception:
-                d['item_title'] = None
+                d['item_title'] = f'{"Movie" if c.item_type == "movie" else "Show"} #{c.item_id}'
             result.append(d)
         return jsonify(result)
     except Exception as e:
@@ -505,6 +469,30 @@ def get_comments(item_id, item_type):
         # Run create_comments_table.py on the server to permanently fix this.
         print(f"Comments table error (run create_comments_table.py to fix): {e}")
         return jsonify([])
+
+@api.route("/comments/<int:comment_id>", methods=["PUT"])
+@login_required
+def edit_comment(comment_id):
+    comment = db.session.get(Comment, comment_id)
+    if not comment:
+        return jsonify({"error": "Comment not found"}), 404
+    if comment.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized"}), 403
+    data = request.json
+    if not data or not data.get("text", "").strip():
+        return jsonify({"error": "Comment text is required"}), 400
+    comment.text = data["text"].strip()
+    rating = data.get("rating")
+    if rating is not None:
+        rating = int(rating)
+        comment.rating = rating if 1 <= rating <= 5 else None
+    else:
+        comment.rating = None
+    # Track edit time
+    from datetime import datetime
+    comment.edited_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(comment.to_dict())
 
 @api.route("/comments/<int:comment_id>", methods=["DELETE"])
 @login_required
@@ -567,7 +555,7 @@ def toggle_watched(item_id):
 # --- Feature 8: OTP email verification ---
 
 from flask_mail import Message as MailMessage
-from extensions import mail
+from app import mail
 import datetime
 
 # In-memory OTP store: { email: { otp, expires, name } }

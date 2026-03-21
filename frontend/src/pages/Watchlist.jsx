@@ -7,7 +7,8 @@ const Watchlist = ({ user }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all'); // 'all' | 'unwatched' | 'watched'
+  const [toastMsg, setToastMsg] = useState('');
+  const [filter, setFilter] = useState('all');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,8 +20,8 @@ const Watchlist = ({ user }) => {
     setLoading(true);
     try {
       const response = await watchlistApi.getWatchlist();
-      // Support legacy items without `watched` field
-      setItems((response.data || []).map(i => ({ ...i, watched: i.watched ?? false })));
+      // Normalize: treat null/undefined watched as false
+      setItems((response.data || []).map(i => ({ ...i, watched: i.watched === true })));
     } catch {
       setError('Failed to load watchlist');
     } finally {
@@ -28,12 +29,17 @@ const Watchlist = ({ user }) => {
     }
   };
 
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(''), 2500);
+  };
+
   const handleRemove = async (e, id) => {
     e.preventDefault(); e.stopPropagation();
     if (!window.confirm('Remove this item?')) return;
     try {
       await watchlistApi.remove(id);
-      setItems(items.filter(item => item.id !== id));
+      setItems(prev => prev.filter(item => item.id !== id));
     } catch {
       alert('Failed to remove item');
     }
@@ -42,13 +48,21 @@ const Watchlist = ({ user }) => {
   const toggleWatched = async (e, item) => {
     e.preventDefault(); e.stopPropagation();
     const newVal = !item.watched;
+
     // Optimistic update
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, watched: newVal } : i));
+
     try {
-      await watchlistApi.toggleWatched(item.id, newVal);
-    } catch {
-      // Revert on failure
+      const res = await watchlistApi.toggleWatched(item.id, newVal);
+      // Sync with actual server value in case DB returned something different
+      const serverWatched = res.data?.watched === true;
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, watched: serverWatched } : i));
+      showToast(serverWatched ? `✓ Marked as watched` : `Marked as unwatched`);
+    } catch (err) {
+      // Revert on failure and show why
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, watched: item.watched } : i));
+      const msg = err.response?.data?.error || 'Failed to update. Please log in again.';
+      showToast(`⚠ ${msg}`);
     }
   };
 
@@ -61,9 +75,19 @@ const Watchlist = ({ user }) => {
 
   return (
     <div className="container" style={{ padding: '40px 4%' }}>
+      {/* Toast */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+          background: '#222', color: 'white', padding: '10px 22px', borderRadius: '30px',
+          fontSize: '0.88rem', fontWeight: '600', zIndex: 9999,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)', pointerEvents: 'none'
+        }}>{toastMsg}</div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <h1 className="section-title" style={{ margin: 0 }}>My Watchlist</h1>
-        <span style={{ color: '#666', fontSize: '0.9rem' }}>{items.length} titles</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{items.length} titles</span>
       </div>
 
       {items.length > 0 && (
@@ -75,9 +99,9 @@ const Watchlist = ({ user }) => {
           ].map(([val, label]) => (
             <button key={val} onClick={() => setFilter(val)} style={{
               padding: '7px 18px', borderRadius: '20px', border: '1px solid',
-              borderColor: filter === val ? '#e50914' : '#333',
+              borderColor: filter === val ? '#e50914' : 'var(--border-color)',
               background: filter === val ? 'rgba(229,9,20,0.15)' : 'transparent',
-              color: filter === val ? 'white' : '#888',
+              color: filter === val ? 'white' : 'var(--text-muted)',
               cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', transition: 'all 0.2s'
             }}>{label}</button>
           ))}
@@ -85,16 +109,16 @@ const Watchlist = ({ user }) => {
       )}
 
       {items.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '80px 20px', background: '#1a1a1a', borderRadius: '12px' }}>
-          <i className="fas fa-bookmark" style={{ fontSize: '4rem', color: '#333', marginBottom: '20px', display: 'block' }}></i>
+        <div style={{ textAlign: 'center', padding: '80px 20px', background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <i className="fas fa-bookmark" style={{ fontSize: '4rem', color: 'var(--border-color)', marginBottom: '20px', display: 'block' }}></i>
           <h2>Your watchlist is empty</h2>
-          <p style={{ color: '#888', marginTop: '10px' }}>Start adding movies and TV shows!</p>
+          <p style={{ color: 'var(--text-muted)', marginTop: '10px' }}>Start adding movies and TV shows!</p>
           <Link to="/" className="btn-signup" style={{ display: 'inline-block', marginTop: '30px', padding: '12px 30px' }}>
             Explore Content
           </Link>
         </div>
       ) : displayed.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#888' }}>
+        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
           <p>No items in this category.</p>
         </div>
       ) : (
@@ -107,9 +131,7 @@ const Watchlist = ({ user }) => {
                     position: 'absolute', top: '8px', left: '8px', zIndex: 3,
                     background: 'rgba(0,200,83,0.9)', borderRadius: '4px',
                     padding: '2px 7px', fontSize: '0.7rem', fontWeight: '700', color: 'white'
-                  }}>
-                    ✓ Watched
-                  </div>
+                  }}>✓ Watched</div>
                 )}
                 <MovieCard
                   item={{ id: item.item_id, title: item.title, poster_path: item.poster_path }}
@@ -121,12 +143,13 @@ const Watchlist = ({ user }) => {
                   onClick={(e) => toggleWatched(e, item)}
                   title={item.watched ? 'Mark as unwatched' : 'Mark as watched'}
                   style={{
-                    flex: 1, background: item.watched ? 'rgba(0,200,83,0.15)' : '#2a2a2a',
-                    border: `1px solid ${item.watched ? 'rgba(0,200,83,0.4)' : '#333'}`,
-                    color: item.watched ? '#00c853' : '#888',
+                    flex: 1,
+                    background: item.watched ? 'rgba(0,200,83,0.15)' : 'var(--card-bg)',
+                    border: `1px solid ${item.watched ? 'rgba(0,200,83,0.4)' : 'var(--border-color)'}`,
+                    color: item.watched ? '#00c853' : 'var(--text-muted)',
                     padding: '7px', borderRadius: '4px', cursor: 'pointer',
-                    fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
-                    transition: 'all 0.2s'
+                    fontSize: '0.8rem', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', gap: '5px', transition: 'all 0.2s'
                   }}>
                   <i className={`fas ${item.watched ? 'fa-eye' : 'fa-eye-slash'}`}></i>
                   {item.watched ? 'Watched' : 'Unwatched'}
@@ -134,8 +157,9 @@ const Watchlist = ({ user }) => {
                 <button
                   onClick={(e) => handleRemove(e, item.id)}
                   style={{
-                    background: '#2a2a2a', border: '1px solid #333', color: '#ff4d4d',
-                    padding: '7px 10px', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s'
+                    background: 'var(--card-bg)', border: '1px solid var(--border-color)',
+                    color: '#ff4d4d', padding: '7px 10px', borderRadius: '4px',
+                    cursor: 'pointer', transition: 'all 0.2s'
                   }}
                   title="Remove">
                   <i className="fas fa-trash-can"></i>

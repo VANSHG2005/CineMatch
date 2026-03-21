@@ -45,6 +45,7 @@ export const commentsApi = {
   getComments: (itemId, itemType) => api.get(`/comments/${itemId}/${itemType}`),
   // Feature 5: rating field included
   postComment: (data) => api.post('/comments', data),
+  editComment: (commentId, data) => api.put(`/comments/${commentId}`, data),
   deleteComment: (commentId) => api.delete(`/comments/${commentId}`),
   getUserActivity: () => api.get("/comments/my-activity"),
 };

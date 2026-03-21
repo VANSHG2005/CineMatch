@@ -315,8 +315,7 @@ const Profile = ({ user, setUser }) => {
 
 // Activity card — shows a comment/rating on a movie or TV show
 const ActivityCard = ({ item }) => (
-  <Link to={`/${item.item_type}/${item.item_id}`} style={{ textDecoration: 'none' }}>
-    <div className="activity-card">
+  <Link to={`/${item.item_type}/${item.item_id}`} style={{ textDecoration: 'none' }}>    <div className="activity-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
         <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '6px', background: item.item_type === 'movie' ? 'rgba(229,9,20,0.15)' : 'rgba(33,150,243,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <i className={`fas ${item.item_type === 'movie' ? 'fa-film' : 'fa-tv'}`} style={{ color: item.item_type === 'movie' ? '#e50914' : '#2196f3', fontSize: '0.85rem' }}></i>
