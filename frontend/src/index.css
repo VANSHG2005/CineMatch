@@ -38,7 +38,7 @@ body {
   left: 0;
   right: 0;
   height: 70px;
-  background-color: rgba(20, 20, 20, 0.98);
+  background-color: var(--navbar-bg);
   z-index: 1000;
   box-shadow: 0 2px 10px rgba(0,0,0,0.5);
   display: flex;
@@ -1253,8 +1253,7 @@ body {
   height: 42px;
   border-radius: 50%;
   border: none;
-  background: rgba(20, 20, 20, 0.92);
-  color: white;
+  background: var(--navbar-bg);  color: white;
   font-size: 1rem;
   cursor: pointer;
   display: flex;
