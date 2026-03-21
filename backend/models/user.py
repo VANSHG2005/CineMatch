@@ -112,4 +112,5 @@ class Notification(db.Model):
             'link': self.link,
             'read': self.read,
             'created_at': self.created_at.isoformat()
-        }git add backend/models/user.py
+        }
+    
