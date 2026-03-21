@@ -555,7 +555,7 @@ def toggle_watched(item_id):
 # --- Feature 8: OTP email verification ---
 
 from flask_mail import Message as MailMessage
-from app import mail
+from extensions import mail
 import datetime
 
 # In-memory OTP store: { email: { otp, expires, name } }
