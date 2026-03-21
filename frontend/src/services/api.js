@@ -24,12 +24,16 @@ export const tmdbApi = {
 export const authApi = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   signup: (name, email, password) => api.post('/auth/signup', { name, email, password }),
-  // OTP email verification (Feature 8)
   sendOtp: (email, name) => api.post('/auth/send-otp', { email, name }),
   verifyOtpSignup: (data) => api.post('/auth/verify-otp', data),
   logout: () => api.post('/auth/logout'),
   getMe: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/update', data),
+  changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword
+  }),
+  deleteAccount: () => api.delete('/auth/delete-account'),
 };
 
 export const watchlistApi = {
@@ -37,8 +41,8 @@ export const watchlistApi = {
   add: (item) => api.post('/watchlist/add', item),
   remove: (itemId) => api.delete(`/watchlist/remove/${itemId}`),
   removeToggle: (itemId, itemType) => api.delete(`/watchlist/remove_toggle/${itemId}/${itemType}`),
-  // Feature 6: watched toggle
   toggleWatched: (itemId, watched) => api.patch(`/watchlist/${itemId}/watched`, { watched }),
+  clearAll: () => api.delete('/watchlist/clear'),
 };
 
 export const commentsApi = {

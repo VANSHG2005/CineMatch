@@ -4,12 +4,48 @@ import { authApi, watchlistApi, commentsApi } from '../services/api';
 import MovieCard from '../components/MovieCard';
 import UserAvatar from '../components/UserAvatar';
 
-// Uses CSS variables so it works in both light and dark themes
 const StatCard = ({ value, label, color }) => (
   <div className="profile-stat-card" style={{ borderTop: `3px solid ${color}` }}>
     <div style={{ fontSize: '2.5rem', fontWeight: '800', color, lineHeight: '1' }}>{value}</div>
     <div className="profile-stat-label">{label}</div>
   </div>
+);
+
+const ActivityCard = ({ item }) => (
+  <Link to={`/${item.item_type}/${item.item_id}`} style={{ textDecoration: 'none' }}>
+    <div className="activity-card">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+        <div style={{
+          flexShrink: 0, width: '36px', height: '36px', borderRadius: '6px',
+          background: item.item_type === 'movie' ? 'rgba(229,9,20,0.15)' : 'rgba(33,150,243,0.15)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <i className={`fas ${item.item_type === 'movie' ? 'fa-film' : 'fa-tv'}`}
+            style={{ color: item.item_type === 'movie' ? '#e50914' : '#2196f3', fontSize: '0.85rem' }}></i>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-color)', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {item.item_title || `${item.item_type === 'movie' ? 'Movie' : 'Show'} #${item.item_id}`}
+          </div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {item.text}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+        {item.rating > 0 && (
+          <div style={{ display: 'flex', gap: '2px' }}>
+            {[1,2,3,4,5].map(s => (
+              <span key={s} style={{ color: s <= item.rating ? '#f5c518' : 'var(--border-color)', fontSize: '0.8rem' }}>★</span>
+            ))}
+          </div>
+        )}
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          {new Date(item.created_at).toLocaleDateString()}
+        </span>
+      </div>
+    </div>
+  </Link>
 );
 
 const Profile = ({ user, setUser }) => {
@@ -18,12 +54,20 @@ const Profile = ({ user, setUser }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '' });
   const [passwordData, setPasswordData] = useState({ current: '', next: '', confirm: '' });
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
   const [watchlist, setWatchlist] = useState([]);
-  const [activity, setActivity] = useState([]);  // comments + ratings by user
+  const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [watchFilter, setWatchFilter] = useState('all');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [clearingWatchlist, setClearingWatchlist] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
@@ -35,7 +79,7 @@ const Profile = ({ user, setUser }) => {
     try {
       const [wlRes, actRes] = await Promise.allSettled([
         watchlistApi.getWatchlist(),
-        commentsApi.getUserActivity(),   // new endpoint — see backend note below
+        commentsApi.getUserActivity(),
       ]);
       if (wlRes.status === 'fulfilled') setWatchlist(wlRes.value.data || []);
       if (actRes.status === 'fulfilled') setActivity(actRes.value.data || []);
@@ -46,9 +90,11 @@ const Profile = ({ user, setUser }) => {
     }
   };
 
+  // ── Edit profile ──
   const handleSave = async (e) => {
     e.preventDefault();
     setError(''); setSuccessMsg('');
+    setSavingProfile(true);
     try {
       const response = await authApi.updateProfile(formData);
       setUser(response.data.user);
@@ -56,16 +102,57 @@ const Profile = ({ user, setUser }) => {
       setIsEditing(false);
     } catch (err) {
       setError(err.response?.data?.error || 'Update failed.');
+    } finally {
+      setSavingProfile(false);
     }
   };
 
-  const handlePasswordChange = (e) => {
+  // ── Change password ──
+  const handlePasswordChange = async (e) => {
     e.preventDefault();
-    setError(''); setSuccessMsg('');
-    if (passwordData.next !== passwordData.confirm) { setError('New passwords do not match.'); return; }
-    if (passwordData.next.length < 6) { setError('Password must be at least 6 characters.'); return; }
-    setSuccessMsg('Password updated successfully!');
-    setPasswordData({ current: '', next: '', confirm: '' });
+    setPwError(''); setPwSuccess('');
+    if (passwordData.next !== passwordData.confirm) { setPwError('New passwords do not match.'); return; }
+    if (passwordData.next.length < 6) { setPwError('Password must be at least 6 characters.'); return; }
+    setSavingPassword(true);
+    try {
+      await authApi.changePassword(passwordData.current, passwordData.next);
+      setPwSuccess('Password updated successfully!');
+      setPasswordData({ current: '', next: '', confirm: '' });
+    } catch (err) {
+      setPwError(err.response?.data?.error || 'Failed to update password.');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  // ── Clear watchlist ──
+  const handleClearWatchlist = async () => {
+    if (!window.confirm(`Clear all ${watchlist.length} items from your watchlist? This cannot be undone.`)) return;
+    setClearingWatchlist(true);
+    try {
+      await watchlistApi.clearAll();
+      setWatchlist([]);
+      setSuccessMsg('Watchlist cleared successfully.');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to clear watchlist.');
+    } finally {
+      setClearingWatchlist(false);
+    }
+  };
+
+  // ── Delete account ──
+  const handleDeleteAccount = async () => {
+    const confirmed = window.prompt('Type DELETE to permanently delete your account and all data:');
+    if (confirmed !== 'DELETE') return;
+    setDeletingAccount(true);
+    try {
+      await authApi.deleteAccount();
+      setUser(null);
+      navigate('/');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete account.');
+      setDeletingAccount(false);
+    }
   };
 
   if (!user) return null;
@@ -75,7 +162,6 @@ const Profile = ({ user, setUser }) => {
   const watched = watchlist.filter(i => i.watched);
   const recentItems = watchlist.slice(0, 6);
   const filteredWatchlist = watchFilter === 'all' ? watchlist : watchFilter === 'movie' ? movies : tvShows;
-
   const ratedActivity = activity.filter(a => a.rating > 0);
   const avgUserRating = ratedActivity.length
     ? (ratedActivity.reduce((s, a) => s + a.rating, 0) / ratedActivity.length).toFixed(1)
@@ -91,7 +177,7 @@ const Profile = ({ user, setUser }) => {
   return (
     <div className="genre-browse-container" style={{ paddingTop: '30px' }}>
 
-      {/* Profile Header */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '36px', flexWrap: 'wrap' }}>
         <UserAvatar name={user.name} src={user.profile_pic} size="large" />
         <div>
@@ -115,14 +201,14 @@ const Profile = ({ user, setUser }) => {
       {/* Tabs */}
       <div className="profile-tabs">
         {tabs.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+          <button key={tab.id} onClick={() => { setActiveTab(tab.id); setError(''); setSuccessMsg(''); }}
             className={`profile-tab-btn ${activeTab === tab.id ? 'active' : ''}`}>
             <i className={`fas ${tab.icon}`}></i> {tab.label}
           </button>
         ))}
       </div>
 
-      {/* ── Overview Tab ── */}
+      {/* ── Overview ── */}
       {activeTab === 'overview' && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '40px' }}>
@@ -150,19 +236,14 @@ const Profile = ({ user, setUser }) => {
               </div>
             )}
 
-          {/* Recent reviews preview */}
           {activity.length > 0 && (
             <div style={{ marginTop: '40px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <h2 className="section-title" style={{ margin: 0 }}>Recent Reviews</h2>
-                <button onClick={() => setActiveTab('activity')} style={{ background: 'none', border: 'none', color: '#e50914', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700' }}>
-                  See all →
-                </button>
+                <button onClick={() => setActiveTab('activity')} style={{ background: 'none', border: 'none', color: '#e50914', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700' }}>See all →</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {activity.slice(0, 3).map(a => (
-                  <ActivityCard key={a.id} item={a} />
-                ))}
+                {activity.slice(0, 3).map(a => <ActivityCard key={a.id} item={a} />)}
               </div>
             </div>
           )}
@@ -202,7 +283,7 @@ const Profile = ({ user, setUser }) => {
         </div>
       )}
 
-      {/* ── My Reviews Tab ── */}
+      {/* ── My Reviews ── */}
       {activeTab === 'activity' && (
         <div>
           {loading ? <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
@@ -233,7 +314,7 @@ const Profile = ({ user, setUser }) => {
         </div>
       )}
 
-      {/* ── Watchlist Tab ── */}
+      {/* ── Watchlist ── */}
       {activeTab === 'watchlist' && (
         <div>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
@@ -258,10 +339,11 @@ const Profile = ({ user, setUser }) => {
         </div>
       )}
 
-      {/* ── Settings Tab ── */}
+      {/* ── Settings ── */}
       {activeTab === 'settings' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
 
+          {/* Edit Profile */}
           <div className="profile-card">
             <h3 className="profile-card-heading"><i className="fas fa-user" style={{ color: '#e50914' }}></i> Edit Profile</h3>
             {error && <div className="error-message" style={{ marginBottom: '16px' }}>{error}</div>}
@@ -270,79 +352,130 @@ const Profile = ({ user, setUser }) => {
               <>
                 <div className="form-group"><label>Full Name</label><div className="profile-field-display">{user.name}</div></div>
                 <div className="form-group"><label>Email Address</label><div className="profile-field-display">{user.email}</div></div>
-                <button className="btn-auth" onClick={() => setIsEditing(true)} style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--text-color)', marginTop: '8px' }}>
+                <button className="btn-auth" onClick={() => setIsEditing(true)}
+                  style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--text-color)', marginTop: '8px' }}>
                   <i className="fas fa-pen" style={{ marginRight: '8px' }}></i>Edit
                 </button>
               </>
             ) : (
               <form onSubmit={handleSave}>
-                <div className="form-group"><label>Full Name</label><input type="text" name="name" className="form-input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required /></div>
-                <div className="form-group"><label>Email Address</label><input type="email" name="email" className="form-input" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required /></div>
+                <div className="form-group">
+                  <label>Full Name</label>
+                  <input type="text" className="form-input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
+                </div>
+                <div className="form-group">
+                  <label>Email Address</label>
+                  <input type="email" className="form-input" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required />
+                </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                  <button type="submit" className="btn-auth">Save</button>
-                  <button type="button" className="btn-auth" onClick={() => setIsEditing(false)} style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--text-color)' }}>Cancel</button>
+                  <button type="submit" className="btn-auth" disabled={savingProfile}>
+                    {savingProfile ? 'Saving...' : 'Save'}
+                  </button>
+                  <button type="button" className="btn-auth" onClick={() => { setIsEditing(false); setFormData({ name: user.name, email: user.email }); }}
+                    style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--text-color)' }}>Cancel</button>
                 </div>
               </form>
             )}
           </div>
 
+          {/* Change Password */}
           <div className="profile-card">
             <h3 className="profile-card-heading"><i className="fas fa-lock" style={{ color: '#2196f3' }}></i> Change Password</h3>
+            {pwError && <div className="error-message" style={{ marginBottom: '16px' }}>{pwError}</div>}
+            {pwSuccess && <div className="profile-success-msg">{pwSuccess}</div>}
             <form onSubmit={handlePasswordChange}>
-              <div className="form-group"><label>Current Password</label><input type="password" className="form-input" value={passwordData.current} onChange={e => setPasswordData({ ...passwordData, current: e.target.value })} required placeholder="Enter current password" /></div>
-              <div className="form-group"><label>New Password</label><input type="password" className="form-input" value={passwordData.next} onChange={e => setPasswordData({ ...passwordData, next: e.target.value })} required placeholder="Min 6 characters" /></div>
-              <div className="form-group"><label>Confirm New Password</label><input type="password" className="form-input" value={passwordData.confirm} onChange={e => setPasswordData({ ...passwordData, confirm: e.target.value })} required placeholder="Repeat new password" /></div>
-              <button type="submit" className="btn-auth" style={{ marginTop: '8px' }}>Update Password</button>
+              <div className="form-group">
+                <label>Current Password</label>
+                <div style={{ position: 'relative' }}>
+                  <input type={showCurrentPw ? 'text' : 'password'} className="form-input"
+                    value={passwordData.current} onChange={e => setPasswordData({ ...passwordData, current: e.target.value })}
+                    required placeholder="Enter current password" style={{ paddingRight: '40px' }} />
+                  <button type="button" onClick={() => setShowCurrentPw(p => !p)}
+                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <i className={`fas ${showCurrentPw ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>New Password</label>
+                <div style={{ position: 'relative' }}>
+                  <input type={showNewPw ? 'text' : 'password'} className="form-input"
+                    value={passwordData.next} onChange={e => setPasswordData({ ...passwordData, next: e.target.value })}
+                    required placeholder="Min 6 characters" style={{ paddingRight: '40px' }} />
+                  <button type="button" onClick={() => setShowNewPw(p => !p)}
+                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <i className={`fas ${showNewPw ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
+                {/* Password strength */}
+                {passwordData.next && (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                      {[1,2,3,4].map(i => (
+                        <div key={i} style={{ flex: 1, height: '3px', borderRadius: '2px',
+                          background: i <= (passwordData.next.length >= 12 ? 4 : passwordData.next.length >= 8 ? 3 : passwordData.next.length >= 6 ? 2 : 1)
+                            ? (passwordData.next.length >= 10 ? '#00c853' : passwordData.next.length >= 6 ? '#ff9800' : '#e50914') : 'var(--border-color)'
+                        }} />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {passwordData.next.length >= 12 ? 'Strong' : passwordData.next.length >= 8 ? 'Good' : passwordData.next.length >= 6 ? 'Weak' : 'Too short'}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="form-group">
+                <label>Confirm New Password</label>
+                <input type="password" className="form-input"
+                  value={passwordData.confirm} onChange={e => setPasswordData({ ...passwordData, confirm: e.target.value })}
+                  required placeholder="Repeat new password" />
+                {passwordData.confirm && passwordData.next !== passwordData.confirm && (
+                  <div style={{ fontSize: '0.78rem', color: '#e50914', marginTop: '4px' }}>Passwords don't match</div>
+                )}
+              </div>
+              <button type="submit" className="btn-auth" disabled={savingPassword} style={{ marginTop: '8px' }}>
+                {savingPassword ? 'Updating...' : 'Update Password'}
+              </button>
             </form>
           </div>
 
-          <div className="profile-card" style={{ borderColor: 'rgba(229,9,20,0.3)' }}>
-            <h3 className="profile-card-heading" style={{ color: '#e50914' }}><i className="fas fa-triangle-exclamation"></i> Danger Zone</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>These actions are permanent and cannot be undone.</p>
-            <button onClick={() => { if (window.confirm('Clear your entire watchlist?')) alert('Feature coming soon.'); }}
-              className="profile-danger-btn" style={{ marginBottom: '10px' }}>
-              <i className="fas fa-trash"></i> Clear Watchlist
-            </button>
-            <button onClick={() => alert('Feature coming soon.')} className="profile-danger-btn" style={{ opacity: 0.7 }}>
-              <i className="fas fa-user-xmark"></i> Delete Account
-            </button>
+          {/* Danger Zone */}
+          <div className="profile-card" style={{ border: '1px solid rgba(229,9,20,0.3)' }}>
+            <h3 className="profile-card-heading" style={{ color: '#e50914' }}>
+              <i className="fas fa-triangle-exclamation"></i> Danger Zone
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>
+              These actions are permanent and cannot be undone.
+            </p>
+
+            <div style={{ marginBottom: '16px', padding: '16px', background: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '0.9rem' }}>Clear Watchlist</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                Remove all {watchlist.length} items from your watchlist.
+              </div>
+              <button onClick={handleClearWatchlist} disabled={clearingWatchlist || watchlist.length === 0}
+                className="profile-danger-btn">
+                <i className="fas fa-trash"></i>
+                {clearingWatchlist ? 'Clearing...' : `Clear Watchlist (${watchlist.length} items)`}
+              </button>
+            </div>
+
+            <div style={{ padding: '16px', background: 'var(--bg-color)', borderRadius: '8px', border: '1px solid rgba(229,9,20,0.2)' }}>
+              <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '0.9rem' }}>Delete Account</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                Permanently delete your account, watchlist, comments and all data. You will be prompted to confirm.
+              </div>
+              <button onClick={handleDeleteAccount} disabled={deletingAccount}
+                className="profile-danger-btn" style={{ opacity: 0.8 }}>
+                <i className="fas fa-user-xmark"></i>
+                {deletingAccount ? 'Deleting...' : 'Delete My Account'}
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 };
-
-// Activity card — shows a comment/rating on a movie or TV show
-const ActivityCard = ({ item }) => (
-  <Link to={`/${item.item_type}/${item.item_id}`} style={{ textDecoration: 'none' }}>    <div className="activity-card">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-        <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '6px', background: item.item_type === 'movie' ? 'rgba(229,9,20,0.15)' : 'rgba(33,150,243,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <i className={`fas ${item.item_type === 'movie' ? 'fa-film' : 'fa-tv'}`} style={{ color: item.item_type === 'movie' ? '#e50914' : '#2196f3', fontSize: '0.85rem' }}></i>
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-color)', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {item.item_title || `${item.item_type === 'movie' ? 'Movie' : 'TV Show'} #${item.item_id}`}
-          </div>
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {item.text}
-          </div>
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-        {item.rating > 0 && (
-          <div style={{ display: 'flex', gap: '2px' }}>
-            {[1,2,3,4,5].map(s => (
-              <span key={s} style={{ color: s <= item.rating ? '#f5c518' : 'var(--border-color)', fontSize: '0.8rem' }}>★</span>
-            ))}
-          </div>
-        )}
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          {new Date(item.created_at).toLocaleDateString()}
-        </span>
-      </div>
-    </div>
-  </Link>
-);
 
 export default Profile;

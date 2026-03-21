@@ -374,6 +374,45 @@ def update_profile():
     db.session.commit()
     return jsonify({'user': current_user.to_dict(), 'message': 'Profile updated successfully'})
 
+
+@api.route('/auth/change-password', methods=['POST'])
+@login_required
+def change_password():
+    data = request.json
+    current_pw = data.get('current_password', '')
+    new_pw = data.get('new_password', '')
+
+    if not current_user.check_password(current_pw):
+        return jsonify({'error': 'Current password is incorrect'}), 400
+    if len(new_pw) < 6:
+        return jsonify({'error': 'New password must be at least 6 characters'}), 400
+
+    current_user.set_password(new_pw)
+    db.session.commit()
+    return jsonify({'message': 'Password updated successfully'})
+
+
+@api.route('/watchlist/clear', methods=['DELETE'])
+@login_required
+def clear_watchlist():
+    WatchlistItem.query.filter_by(user_id=current_user.id).delete()
+    db.session.commit()
+    return jsonify({'message': 'Watchlist cleared'})
+
+
+@api.route('/auth/delete-account', methods=['DELETE'])
+@login_required
+def delete_account():
+    from flask_login import logout_user
+    user_id = current_user.id
+    logout_user()
+    # Delete all user data — cascade handles related rows
+    user = db.session.get(User, user_id)
+    if user:
+        db.session.delete(user)
+        db.session.commit()
+    return jsonify({'message': 'Account deleted'})
+
 # Watchlist Routes
 @api.route('/watchlist', methods=['GET'])
 @login_required
