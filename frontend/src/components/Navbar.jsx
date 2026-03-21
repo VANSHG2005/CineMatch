@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FaBars, FaTimes, FaSearch, FaUser, FaSignOutAlt, FaPlus, FaHome, FaFilm, FaTv, FaMagic } from 'react-icons/fa';
 import UserAvatar from './UserAvatar';
 import { useTheme } from '../context/ThemeContext';
+import NotificationBell from './NotificationBell';
 
 const MAX_HISTORY = 8;
 
@@ -158,6 +159,7 @@ const Navbar = ({ user, setUser }) => {
 
             <Link to="/recommend" className="nav-link" onClick={closeMenu}><FaMagic className="nav-icon" /> Recommend</Link>
             {user && <Link to="/watchlist" className="nav-link" onClick={closeMenu}><FaPlus className="nav-icon" /> Watchlist</Link>}
+            {user && <Link to="/friends" className="nav-link" onClick={closeMenu}><i className="fas fa-user-group" style={{marginRight:'4px'}}></i> Friends</Link>}
 
             <div className="mobile-auth">
               {user ? (
@@ -211,6 +213,8 @@ const Navbar = ({ user, setUser }) => {
         </form>
 
         <div className="nav-auth desktop-auth" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Notifications */}
+          <NotificationBell user={user} />
           {/* Theme toggle */}
           <button onClick={toggleTheme} className="theme-toggle-btn" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
             <i className={`fas ${theme === 'dark' ? 'fa-sun' : 'fa-moon'}`}></i>

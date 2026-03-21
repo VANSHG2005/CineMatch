@@ -12,8 +12,8 @@ export const tmdbApi = {
   getInitData: () => api.get('/init-data'),
   getGenres: () => api.get('/genres'),
   getGenreContent: (type, id) => api.get(`/genre/${type}/${id}`),
-  getMoviesByCategory: (category) => api.get(`/movies/${category}`),
-  getTvByCategory: (category) => api.get(`/tv/${category}`),
+  getMoviesByCategory: (category, page = 1) => api.get(`/movies/${category}`, { params: { page } }),
+  getTvByCategory: (category, page = 1) => api.get(`/tv/${category}`, { params: { page } }),
   getMovieDetail: (id) => api.get(`/movie/${id}`),
   getTvDetail: (id) => api.get(`/tv/${id}`),
   getPersonDetail: (id) => api.get(`/person/${id}`),
@@ -50,3 +50,19 @@ export const commentsApi = {
 };
 
 export default api;
+
+// Notifications API (Feature 2)
+export const notificationsApi = {
+  getAll: () => api.get('/notifications'),
+  markAllRead: () => api.post('/notifications/read-all'),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+};
+
+// Friends API (Feature 3)
+export const friendsApi = {
+  getFriends: () => api.get('/friends'),
+  searchUsers: (q) => api.get('/users/search', { params: { q } }),
+  follow: (userId) => api.post(`/users/${userId}/follow`),
+  unfollow: (userId) => api.delete(`/users/${userId}/unfollow`),
+  getFriendWatchlist: (userId) => api.get(`/friends/${userId}/watchlist`),
+};

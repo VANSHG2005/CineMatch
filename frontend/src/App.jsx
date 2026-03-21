@@ -15,6 +15,7 @@ import Profile from './pages/Profile';
 import CategoryPage from './pages/CategoryPage';
 import GenrePage from './pages/GenrePage';
 import RecommendationPage from './pages/RecommendationPage';
+import FriendsPage from './pages/FriendsPage';
 import { authApi } from './services/api';
 
 function App() {
@@ -56,6 +57,7 @@ function App() {
               <Route path="/category/:type/:category" element={<CategoryPage />} />
               <Route path="/genre/:type/:id" element={<GenrePage />} />
               <Route path="/recommend" element={<RecommendationPage />} />
+            <Route path="/friends" element={<FriendsPage user={user} />} />
             </Routes>
           </main>
           <footer className="footer">
