@@ -51,3 +51,13 @@ class Config:
         "tmdb_tv_series.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_tv_shows.pkl?download=true",
         "tmdb_tv_similarity.pkl": "https://huggingface.co/VANSHGARG2005/cinematch-models/resolve/main/tmdb_tv_similarity.pkl?download=true"
     }
+
+    # Flask-Mail — OTP email verification (Feature 8)
+    # Set these in your Render environment variables dashboard
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
+    MAIL_USE_TLS = True
+    MAIL_USE_SSL = False
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')        # your Gmail address
+    MAIL_PASSWORD = os.environ.get('MAIL_APP_PASSWORD')    # Gmail App Password (not login password)
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_USERNAME')

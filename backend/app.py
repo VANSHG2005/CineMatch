@@ -2,12 +2,16 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_mail import Mail
 from werkzeug.exceptions import HTTPException
 from config import Config
 from models.user import db, User
 from routes.api_routes import api
 from services.recommendation_service import recommendation_service
+from services.notification_service import notification_service
 import os
+
+mail = Mail()
 
 def _run_startup_migrations(app):
     """
@@ -58,6 +62,61 @@ def _run_startup_migrations(app):
         db.session.rollback()
         print(f"[migration] comments table error: {e}")
 
+    # Fix 3: Add rating column to comments (Feature 5 — star ratings)
+    try:
+        db.session.execute(text('ALTER TABLE comments ADD COLUMN IF NOT EXISTS rating SMALLINT;'))
+        db.session.commit()
+        print("[migration] comments.rating column ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] comments.rating skipped: {e}")
+
+    # Fix 4: Add watched column to watchlist_items (Feature 6 — watched toggle)
+    try:
+        db.session.execute(text('ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS watched BOOLEAN NOT NULL DEFAULT FALSE;'))
+        db.session.commit()
+        print("[migration] watchlist_items.watched column ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] watchlist_items.watched skipped: {e}")
+
+    # Fix 5: follows table (Feature 3 — friend system)
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS follows (
+                follower_id VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                followed_id VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                created_at  TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+                PRIMARY KEY (follower_id, followed_id)
+            );
+        """))
+        db.session.commit()
+        print("[migration] follows table ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] follows table skipped: {e}")
+
+    # Fix 6: notifications table (Feature 2 — notifications)
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS notifications (
+                id         SERIAL PRIMARY KEY,
+                user_id    VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                type       VARCHAR(30) NOT NULL,
+                title      VARCHAR(200) NOT NULL,
+                body       TEXT NOT NULL,
+                link       VARCHAR(300),
+                read       BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+            );
+        """))
+        db.session.execute(text('CREATE INDEX IF NOT EXISTS ix_notifications_user ON notifications (user_id, read);'))
+        db.session.commit()
+        print("[migration] notifications table ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] notifications table skipped: {e}")
+
     print("Startup migrations complete.")
 
 
@@ -85,6 +144,7 @@ def create_app():
     
     # Fire up the DB and Migrations
     db.init_app(app)
+    mail.init_app(app)
     migrate = Migrate(app, db)
 
     # Run DB migrations right after db is bound — creates missing tables and fixes column types.
@@ -145,11 +205,13 @@ def create_app():
     with app.app_context():
         print("Starting up the recommendation engine...")
         try:
-            # We use lazy loading inside here to save memory on start
             recommendation_service.init_app(app)
             print("Backend logic is fully loaded.")
         except Exception as e:
             print(f"Error during startup: {e}")
+
+    # Start background notification checker
+    notification_service.init_app(app)
     
     # All our main API logic is inside this blueprint
     # We register without prefix because the frontend expects routes at root

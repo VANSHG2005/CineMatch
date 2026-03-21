@@ -67,12 +67,14 @@ def init_data():
 
 @api.route('/movies/<category>', methods=['GET'])
 def get_movies_category(category):
-    movies = TMDBService.fetch_movies_by_category(category)
+    page = request.args.get('page', 1, type=int)
+    movies = TMDBService.fetch_movies_by_category(category, page=page)
     return jsonify(movies)
 
 @api.route('/tv/<category>', methods=['GET'])
 def get_tv_category(category):
-    tv_shows = TMDBService.fetch_tv_by_category(category)
+    page = request.args.get('page', 1, type=int)
+    tv_shows = TMDBService.fetch_tv_by_category(category, page=page)
     return jsonify(tv_shows)
 
 @api.route('/movie/<int:movie_id>', methods=['GET'])
@@ -430,6 +432,32 @@ def remove_watchlist_toggle(item_id, item_type):
     return jsonify({'error': 'Item not found in watchlist'}), 404
 
 # Comment Routes
+# GET /comments/my-activity — returns all comments+ratings made by the logged-in user
+# Includes item title fetched from TMDB so the profile can display it
+@api.route("/comments/my-activity", methods=["GET"])
+@login_required
+def get_my_activity():
+    try:
+        comments = Comment.query.filter_by(user_id=current_user.id).order_by(Comment.created_at.desc()).all()
+        result = []
+        for c in comments:
+            d = c.to_dict()
+            # Try to fetch the title from TMDB to display in profile
+            try:
+                if c.item_type == 'movie':
+                    details = TMDBService.get_movie_details(c.item_id)
+                    d['item_title'] = details.get('title') if details else None
+                else:
+                    details = TMDBService.get_tv_details(c.item_id)
+                    d['item_title'] = details.get('name') if details else None
+            except Exception:
+                d['item_title'] = None
+            result.append(d)
+        return jsonify(result)
+    except Exception as e:
+        print(f"Failed to fetch user activity: {e}")
+        return jsonify([])
+
 @api.route("/comments/<int:item_id>/<item_type>", methods=["GET"])
 def get_comments(item_id, item_type):
     try:
@@ -440,27 +468,6 @@ def get_comments(item_id, item_type):
         # Run create_comments_table.py on the server to permanently fix this.
         print(f"Comments table error (run create_comments_table.py to fix): {e}")
         return jsonify([])
-
-@api.route("/comments", methods=["POST"])
-@login_required
-def post_comment():
-    data = request.json
-    if not data or not data.get("text", "").strip():
-        return jsonify({"error": "Comment text is required"}), 400
-    try:
-        comment = Comment(
-            user_id=current_user.id,
-            item_id=data["item_id"],
-            item_type=data["item_type"],
-            text=data["text"].strip()
-        )
-        db.session.add(comment)
-        db.session.commit()
-        return jsonify(comment.to_dict())
-    except Exception as e:
-        db.session.rollback()
-        print(f"Failed to post comment: {e}")
-        return jsonify({"error": "Could not save comment. Please try again."}), 500
 
 @api.route("/comments/<int:comment_id>", methods=["DELETE"])
 @login_required
@@ -474,3 +481,257 @@ def delete_comment(comment_id):
     db.session.delete(comment)
     db.session.commit()
     return jsonify({"message": "Comment deleted"})
+
+import random, string
+
+# --- Feature 5: POST /comments with star rating support ---
+
+@api.route("/comments", methods=["POST"])
+@login_required
+def post_comment():
+    data = request.json
+    if not data or not data.get("text", "").strip():
+        return jsonify({"error": "Comment text is required"}), 400
+    try:
+        rating = data.get("rating")
+        if rating is not None:
+            rating = int(rating)
+            if not (1 <= rating <= 5):
+                rating = None
+        comment = Comment(
+            user_id=current_user.id,
+            item_id=data["item_id"],
+            item_type=data["item_type"],
+            text=data["text"].strip(),
+            rating=rating
+        )
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify(comment.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        print(f"Failed to post comment: {e}")
+        return jsonify({"error": "Could not save comment."}), 500
+
+
+# --- Feature 6: PATCH /watchlist/<id>/watched — mark as watched/unwatched ---
+@api.route('/watchlist/<int:item_id>/watched', methods=['PATCH'])
+@login_required
+def toggle_watched(item_id):
+    item = WatchlistItem.query.filter_by(id=item_id, user_id=current_user.id).first()
+    if not item:
+        return jsonify({'error': 'Item not found'}), 404
+    data = request.json
+    item.watched = bool(data.get('watched', False))
+    db.session.commit()
+    return jsonify(item.to_dict())
+
+
+# --- Feature 8: OTP email verification ---
+
+from flask_mail import Message as MailMessage
+from app import mail
+import datetime
+
+# In-memory OTP store: { email: { otp, expires, name } }
+_otp_store = {}
+
+@api.route('/auth/send-otp', methods=['POST'])
+def send_otp():
+    data = request.json
+    email = (data.get('email') or '').strip().lower()
+    name = (data.get('name') or '').strip()
+    if not email:
+        return jsonify({'error': 'Email required'}), 400
+
+    # Block if email already registered
+    from models.user import User
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'Email already registered'}), 400
+
+    code = ''.join(random.choices(string.digits, k=6))
+    _otp_store[email] = {
+        'otp': code,
+        'name': name,
+        'expires': datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+    }
+
+    try:
+        msg = MailMessage(
+            subject='Your CineMatch verification code',
+            recipients=[email],
+            html=f"""
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#141414;color:#fff;border-radius:12px;padding:32px;border:1px solid #333;">
+              <h2 style="color:#e50914;margin-bottom:8px;">CineMatch</h2>
+              <p style="color:#aaa;margin-bottom:24px;">Hi {name}, here is your verification code:</p>
+              <div style="font-size:2.5rem;font-weight:800;letter-spacing:12px;text-align:center;
+                          background:#1a1a1a;border-radius:8px;padding:20px;margin-bottom:24px;
+                          color:#fff;border:1px solid #333;">{code}</div>
+              <p style="color:#666;font-size:0.85rem;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
+            </div>
+            """
+        )
+        mail.send(msg)
+    except Exception as e:
+        print(f"Mail send failed: {e}")
+        # Dev fallback: print to logs so you can test without SMTP
+        print(f"[DEV OTP] {email} → {code}")
+
+    return jsonify({'message': 'OTP sent'}), 200
+
+
+@api.route('/auth/verify-otp', methods=['POST'])
+def verify_otp_signup():
+    import uuid
+    data = request.json
+    email = (data.get('email') or '').strip().lower()
+    otp_input = (data.get('otp') or '').strip()
+    name = (data.get('name') or '').strip()
+    password = data.get('password', '')
+
+    record = _otp_store.get(email)
+    if not record:
+        return jsonify({'error': 'No OTP found for this email. Please request a new one.'}), 400
+    if datetime.datetime.utcnow() > record['expires']:
+        _otp_store.pop(email, None)
+        return jsonify({'error': 'Code expired. Please request a new one.'}), 400
+    if record['otp'] != otp_input:
+        return jsonify({'error': 'Incorrect code. Please try again.'}), 400
+
+    # OTP valid — create the account
+    _otp_store.pop(email, None)
+    from models.user import User
+    from flask_login import login_user
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'Email already registered'}), 400
+
+    user = User(id=str(uuid.uuid4()), name=name, email=email, profile_pic='https://via.placeholder.com/150')
+    user.set_password(password)
+    try:
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
+        return jsonify({'user': user.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Could not create account.'}), 500
+
+# ══════════════════════════════════════════════════════════════════════
+# FEATURE 2: NOTIFICATIONS
+# ══════════════════════════════════════════════════════════════════════
+
+from models.user import Notification
+
+@api.route('/notifications', methods=['GET'])
+@login_required
+def get_notifications():
+    notifs = Notification.query.filter_by(user_id=current_user.id)\
+        .order_by(Notification.created_at.desc()).limit(30).all()
+    unread = Notification.query.filter_by(user_id=current_user.id, read=False).count()
+    return jsonify({
+        'notifications': [n.to_dict() for n in notifs],
+        'unread_count': unread
+    })
+
+@api.route('/notifications/read-all', methods=['POST'])
+@login_required
+def mark_all_read():
+    Notification.query.filter_by(user_id=current_user.id, read=False)\
+        .update({'read': True})
+    db.session.commit()
+    return jsonify({'message': 'All notifications marked as read'})
+
+@api.route('/notifications/<int:notif_id>/read', methods=['PATCH'])
+@login_required
+def mark_read(notif_id):
+    notif = Notification.query.filter_by(id=notif_id, user_id=current_user.id).first()
+    if not notif:
+        return jsonify({'error': 'Not found'}), 404
+    notif.read = True
+    db.session.commit()
+    return jsonify(notif.to_dict())
+
+
+# ══════════════════════════════════════════════════════════════════════
+# FEATURE 3: FRIEND SYSTEM / FOLLOWS
+# ══════════════════════════════════════════════════════════════════════
+
+from models.user import follows
+
+@api.route('/users/search', methods=['GET'])
+@login_required
+def search_users():
+    """Search users by name or email to find friends"""
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify([])
+    results = User.query.filter(
+        (User.name.ilike(f'%{q}%') | User.email.ilike(f'%{q}%')),
+        User.id != current_user.id
+    ).limit(10).all()
+    # Include follow status
+    following_ids = {u.id for u in current_user.following}
+    return jsonify([{
+        **u.to_dict(),
+        'is_following': u.id in following_ids
+    } for u in results])
+
+@api.route('/users/<user_id>/follow', methods=['POST'])
+@login_required
+def follow_user(user_id):
+    target = db.session.get(User, user_id)
+    if not target or target.id == current_user.id:
+        return jsonify({'error': 'Invalid user'}), 400
+    if target in current_user.following:
+        return jsonify({'error': 'Already following'}), 400
+    current_user.following.append(target)
+    # Send notification to the followed user
+    notif = Notification(
+        user_id=target.id,
+        type='new_follower',
+        title=f'{current_user.name} started following you!',
+        body=f'{current_user.name} is now following you on CineMatch.',
+        link=f'/friends'
+    )
+    db.session.add(notif)
+    db.session.commit()
+    return jsonify({'message': f'Now following {target.name}'})
+
+@api.route('/users/<user_id>/unfollow', methods=['DELETE'])
+@login_required
+def unfollow_user(user_id):
+    target = db.session.get(User, user_id)
+    if not target:
+        return jsonify({'error': 'User not found'}), 404
+    if target in current_user.following:
+        current_user.following.remove(target)
+        db.session.commit()
+    return jsonify({'message': 'Unfollowed'})
+
+@api.route('/friends', methods=['GET'])
+@login_required
+def get_friends():
+    """Returns who I follow and who follows me"""
+    following_ids = {u.id for u in current_user.following}
+    return jsonify({
+        'following': [{**u.to_dict(), 'is_following': True} for u in current_user.following],
+        'followers': [{**u.to_dict(), 'is_following': u.id in following_ids} for u in current_user.followers]
+    })
+
+@api.route('/friends/<user_id>/watchlist', methods=['GET'])
+@login_required
+def friend_watchlist(user_id):
+    """See a friend's watchlist — only if they follow each other (mutual)"""
+    target = db.session.get(User, user_id)
+    if not target:
+        return jsonify({'error': 'User not found'}), 404
+    # Check mutual follow
+    is_following = target in current_user.following
+    is_follower = current_user in target.following
+    if not (is_following and is_follower):
+        return jsonify({'error': 'You can only view watchlists of mutual friends'}), 403
+    items = WatchlistItem.query.filter_by(user_id=user_id).order_by(WatchlistItem.added_on.desc()).all()
+    return jsonify({
+        'user': target.to_dict(),
+        'watchlist': [i.to_dict() for i in items]
+    })
