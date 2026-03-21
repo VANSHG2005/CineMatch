@@ -67,14 +67,12 @@ def init_data():
 
 @api.route('/movies/<category>', methods=['GET'])
 def get_movies_category(category):
-    page = request.args.get('page', 1, type=int)
-    movies = TMDBService.fetch_movies_by_category(category, page=page)
+    movies = TMDBService.fetch_movies_by_category(category)
     return jsonify(movies)
 
 @api.route('/tv/<category>', methods=['GET'])
 def get_tv_category(category):
-    page = request.args.get('page', 1, type=int)
-    tv_shows = TMDBService.fetch_tv_by_category(category, page=page)
+    tv_shows = TMDBService.fetch_tv_by_category(category)
     return jsonify(tv_shows)
 
 @api.route('/movie/<int:movie_id>', methods=['GET'])
@@ -107,8 +105,21 @@ def get_movie_detail(movie_id):
         first_region = next(iter(all_providers))
         providers = all_providers.get(first_region)
     
-    # Extract API similar movies
-    api_similar = movie_details.get('similar', {}).get('results', [])[:12]
+    # Extract TMDB recommendations (much better quality than /similar)
+    # Merge /recommendations + /similar, deduplicate, filter low quality
+    tmdb_recs_raw = movie_details.get('recommendations', {}).get('results', [])
+    api_similar_raw = movie_details.get('similar', {}).get('results', [])
+    seen_ids = {movie_details.get('id')}
+    api_similar = []
+    for item in (tmdb_recs_raw + api_similar_raw):
+        if (item.get('id') not in seen_ids
+                and item.get('poster_path')
+                and item.get('vote_average', 0) >= 5.0
+                and item.get('vote_count', 0) >= 20):
+            seen_ids.add(item['id'])
+            api_similar.append(item)
+        if len(api_similar) >= 12:
+            break
 
     # Extract related movies (franchise)
     related_movies = []
@@ -127,10 +138,16 @@ def get_movie_detail(movie_id):
             print(f"Error fetching collection {collection_id}: {e}")
             related_movies = []
 
-    # ML recommendations
+    # ML recommendations — deduplicated against api_similar, poster required
     ml_recommendations = []
     if movie_details.get('title'):
-        _, ml_recommendations = recommendation_service.get_movie_recommendations(movie_details['title'])
+        _, raw_ml = recommendation_service.get_movie_recommendations(movie_details['title'])
+        api_similar_ids = {i.get('id') for i in api_similar}
+        for rec in raw_ml:
+            if rec.get('id') not in api_similar_ids and rec.get('poster_path'):
+                ml_recommendations.append(rec)
+            if len(ml_recommendations) >= 12:
+                break
     
     # Check if in watchlist
     in_watchlist = False
@@ -144,6 +161,7 @@ def get_movie_detail(movie_id):
     movie_details.pop('videos', None)
     movie_details.pop('watch/providers', None)
     movie_details.pop('similar', None)
+    movie_details.pop('recommendations', None)
 
     # Convert genres to list of names
     movie_details['genres'] = [g['name'] for g in movie_details.get('genres', [])]
@@ -184,13 +202,31 @@ def get_tv_detail(tv_id):
     if not providers:
         providers = tv_details.get('watch/providers', {}).get('results', {}).get('US')
     
-    # Extract API similar
-    api_similar = tv_details.get('similar', {}).get('results', [])[:12]
+    # Extract TMDB recommendations + similar, merge and deduplicate
+    tmdb_recs_raw = tv_details.get('recommendations', {}).get('results', [])
+    api_similar_raw = tv_details.get('similar', {}).get('results', [])
+    seen_ids = {tv_details.get('id')}
+    api_similar = []
+    for item in (tmdb_recs_raw + api_similar_raw):
+        if (item.get('id') not in seen_ids
+                and item.get('poster_path')
+                and item.get('vote_average', 0) >= 5.0
+                and item.get('vote_count', 0) >= 20):
+            seen_ids.add(item['id'])
+            api_similar.append(item)
+        if len(api_similar) >= 12:
+            break
 
-    # ML recommendations
+    # ML recommendations — deduplicated against api_similar, poster required
     ml_recommendations = []
     if tv_details.get('name'):
-        _, ml_recommendations = recommendation_service.get_tv_recommendations(tv_details['name'])
+        _, raw_ml = recommendation_service.get_tv_recommendations(tv_details['name'])
+        api_similar_ids = {i.get('id') for i in api_similar}
+        for rec in raw_ml:
+            if rec.get('id') not in api_similar_ids and rec.get('poster_path'):
+                ml_recommendations.append(rec)
+            if len(ml_recommendations) >= 12:
+                break
     
     # Check if in watchlist
     in_watchlist = False
@@ -204,6 +240,7 @@ def get_tv_detail(tv_id):
     tv_details.pop('videos', None)
     tv_details.pop('watch/providers', None)
     tv_details.pop('similar', None)
+    tv_details.pop('recommendations', None)
 
     # Convert genres to list of names
     tv_details['genres'] = [g['name'] for g in tv_details.get('genres', [])]
@@ -530,7 +567,7 @@ def toggle_watched(item_id):
 # --- Feature 8: OTP email verification ---
 
 from flask_mail import Message as MailMessage
-from app import mail
+from extensions import mail
 import datetime
 
 # In-memory OTP store: { email: { otp, expires, name } }
@@ -615,123 +652,3 @@ def verify_otp_signup():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Could not create account.'}), 500
-
-# ══════════════════════════════════════════════════════════════════════
-# FEATURE 2: NOTIFICATIONS
-# ══════════════════════════════════════════════════════════════════════
-
-from models.user import Notification
-
-@api.route('/notifications', methods=['GET'])
-@login_required
-def get_notifications():
-    notifs = Notification.query.filter_by(user_id=current_user.id)\
-        .order_by(Notification.created_at.desc()).limit(30).all()
-    unread = Notification.query.filter_by(user_id=current_user.id, read=False).count()
-    return jsonify({
-        'notifications': [n.to_dict() for n in notifs],
-        'unread_count': unread
-    })
-
-@api.route('/notifications/read-all', methods=['POST'])
-@login_required
-def mark_all_read():
-    Notification.query.filter_by(user_id=current_user.id, read=False)\
-        .update({'read': True})
-    db.session.commit()
-    return jsonify({'message': 'All notifications marked as read'})
-
-@api.route('/notifications/<int:notif_id>/read', methods=['PATCH'])
-@login_required
-def mark_read(notif_id):
-    notif = Notification.query.filter_by(id=notif_id, user_id=current_user.id).first()
-    if not notif:
-        return jsonify({'error': 'Not found'}), 404
-    notif.read = True
-    db.session.commit()
-    return jsonify(notif.to_dict())
-
-
-# ══════════════════════════════════════════════════════════════════════
-# FEATURE 3: FRIEND SYSTEM / FOLLOWS
-# ══════════════════════════════════════════════════════════════════════
-
-from models.user import follows
-
-@api.route('/users/search', methods=['GET'])
-@login_required
-def search_users():
-    """Search users by name or email to find friends"""
-    q = request.args.get('q', '').strip()
-    if len(q) < 2:
-        return jsonify([])
-    results = User.query.filter(
-        (User.name.ilike(f'%{q}%') | User.email.ilike(f'%{q}%')),
-        User.id != current_user.id
-    ).limit(10).all()
-    # Include follow status
-    following_ids = {u.id for u in current_user.following}
-    return jsonify([{
-        **u.to_dict(),
-        'is_following': u.id in following_ids
-    } for u in results])
-
-@api.route('/users/<user_id>/follow', methods=['POST'])
-@login_required
-def follow_user(user_id):
-    target = db.session.get(User, user_id)
-    if not target or target.id == current_user.id:
-        return jsonify({'error': 'Invalid user'}), 400
-    if target in current_user.following:
-        return jsonify({'error': 'Already following'}), 400
-    current_user.following.append(target)
-    # Send notification to the followed user
-    notif = Notification(
-        user_id=target.id,
-        type='new_follower',
-        title=f'{current_user.name} started following you!',
-        body=f'{current_user.name} is now following you on CineMatch.',
-        link=f'/friends'
-    )
-    db.session.add(notif)
-    db.session.commit()
-    return jsonify({'message': f'Now following {target.name}'})
-
-@api.route('/users/<user_id>/unfollow', methods=['DELETE'])
-@login_required
-def unfollow_user(user_id):
-    target = db.session.get(User, user_id)
-    if not target:
-        return jsonify({'error': 'User not found'}), 404
-    if target in current_user.following:
-        current_user.following.remove(target)
-        db.session.commit()
-    return jsonify({'message': 'Unfollowed'})
-
-@api.route('/friends', methods=['GET'])
-@login_required
-def get_friends():
-    """Returns who I follow and who follows me"""
-    following_ids = {u.id for u in current_user.following}
-    return jsonify({
-        'following': [{**u.to_dict(), 'is_following': True} for u in current_user.following],
-        'followers': [{**u.to_dict(), 'is_following': u.id in following_ids} for u in current_user.followers]
-    })
-
-@api.route('/friends/<user_id>/watchlist', methods=['GET'])
-@login_required
-def friend_watchlist(user_id):
-    """See a friend's watchlist — only if they follow each other (mutual)"""
-    target = db.session.get(User, user_id)
-    if not target:
-        return jsonify({'error': 'User not found'}), 404
-    # Check mutual follow
-    is_following = target in current_user.following
-    is_follower = current_user in target.following
-    if not (is_following and is_follower):
-        return jsonify({'error': 'You can only view watchlists of mutual friends'}), 403
-    items = WatchlistItem.query.filter_by(user_id=user_id).order_by(WatchlistItem.added_on.desc()).all()
-    return jsonify({
-        'user': target.to_dict(),
-        'watchlist': [i.to_dict() for i in items]
-    })

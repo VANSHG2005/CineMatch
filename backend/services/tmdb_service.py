@@ -92,7 +92,7 @@ class TMDBService:
     def get_movie_details(movie_id):
         api_key = TMDBService.get_api_key()
         try:
-            url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US&append_to_response=credits,videos,similar,watch/providers"
+            url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US&append_to_response=credits,videos,recommendations,similar,watch/providers"
             response = requests.get(url)
             if response.status_code != 200:
                 return None
@@ -105,7 +105,7 @@ class TMDBService:
     def get_tv_details(tv_id):
         api_key = TMDBService.get_api_key()
         try:
-            url = f"https://api.themoviedb.org/3/tv/{tv_id}?api_key={api_key}&language=en-US&append_to_response=credits,videos,similar,watch/providers"
+            url = f"https://api.themoviedb.org/3/tv/{tv_id}?api_key={api_key}&language=en-US&append_to_response=credits,videos,recommendations,similar,watch/providers"
             response = requests.get(url)
             if response.status_code != 200:
                 return None
