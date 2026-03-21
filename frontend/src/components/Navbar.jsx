@@ -1,15 +1,25 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi, tmdbApi } from '../services/api';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FaBars, FaTimes, FaSearch, FaUser, FaSignOutAlt, FaPlus, FaHome, FaFilm, FaTv, FaMagic } from 'react-icons/fa';
 import UserAvatar from './UserAvatar';
+import { useTheme } from '../context/ThemeContext';
+
+const MAX_HISTORY = 8;
 
 const Navbar = ({ user, setUser }) => {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [genres, setGenres] = useState({ movies: {}, tv: {} });
   const [navSearchQuery, setNavSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [searchHistory, setSearchHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cinematch-search-history') || '[]'); }
+    catch { return []; }
+  });
+  const [showHistory, setShowHistory] = useState(false);
+  const searchRef = useRef(null);
 
   useEffect(() => {
     const fetchGenres = async () => {
@@ -22,6 +32,37 @@ const Navbar = ({ user, setUser }) => {
     };
     fetchGenres();
   }, []);
+
+  // Close history dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowHistory(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const saveSearch = (query) => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    const updated = [trimmed, ...searchHistory.filter(h => h !== trimmed)].slice(0, MAX_HISTORY);
+    setSearchHistory(updated);
+    localStorage.setItem('cinematch-search-history', JSON.stringify(updated));
+  };
+
+  const removeHistory = (item, e) => {
+    e.stopPropagation();
+    const updated = searchHistory.filter(h => h !== item);
+    setSearchHistory(updated);
+    localStorage.setItem('cinematch-search-history', JSON.stringify(updated));
+  };
+
+  const clearHistory = () => {
+    setSearchHistory([]);
+    localStorage.removeItem('cinematch-search-history');
+  };
 
   const handleLogout = async () => {
     try {
@@ -36,11 +77,20 @@ const Navbar = ({ user, setUser }) => {
 
   const handleNavSearch = (e) => {
     e.preventDefault();
-    if (navSearchQuery.trim()) {
-      navigate(`/search?query=${encodeURIComponent(navSearchQuery.trim())}`);
-      setNavSearchQuery('');
-      setIsMobileMenuOpen(false);
-    }
+    const q = navSearchQuery.trim();
+    if (!q) return;
+    saveSearch(q);
+    navigate(`/search?query=${encodeURIComponent(q)}`);
+    setNavSearchQuery('');
+    setShowHistory(false);
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleHistoryClick = (item) => {
+    saveSearch(item);
+    navigate(`/search?query=${encodeURIComponent(item)}`);
+    setNavSearchQuery('');
+    setShowHistory(false);
   };
 
   const toggleMobileMenu = () => {
@@ -49,7 +99,6 @@ const Navbar = ({ user, setUser }) => {
   };
 
   const toggleDropdown = (name) => {
-    // Only toggle on mobile screens (where mobile menu is active)
     if (window.innerWidth <= 1100) {
       setActiveDropdown(activeDropdown === name ? null : name);
     }
@@ -60,15 +109,19 @@ const Navbar = ({ user, setUser }) => {
     setActiveDropdown(null);
   };
 
+  const filteredHistory = navSearchQuery.trim()
+    ? searchHistory.filter(h => h.toLowerCase().includes(navSearchQuery.toLowerCase()))
+    : searchHistory;
+
   return (
     <nav className={`navbar ${isMobileMenuOpen ? 'mobile-active' : ''}`}>
       <div className="nav-container">
         <Link to="/" className="nav-logo" onClick={closeMenu}>CineMatch</Link>
-        
+
         <div className={`nav-menu ${isMobileMenuOpen ? 'active' : ''}`}>
           <div className="nav-links">
             <Link to="/" className="nav-link" onClick={closeMenu}><FaHome className="nav-icon" /> Home</Link>
-            
+
             <div className={`nav-item-dropdown ${activeDropdown === 'movies' ? 'open' : ''}`} onClick={() => toggleDropdown('movies')}>
               <span className="nav-link"><FaFilm className="nav-icon" /> Movies</span>
               <div className="dropdown-menu">
@@ -105,17 +158,12 @@ const Navbar = ({ user, setUser }) => {
 
             <Link to="/recommend" className="nav-link" onClick={closeMenu}><FaMagic className="nav-icon" /> Recommend</Link>
             {user && <Link to="/watchlist" className="nav-link" onClick={closeMenu}><FaPlus className="nav-icon" /> Watchlist</Link>}
-            
-            {/* Mobile Auth Links */}
+
             <div className="mobile-auth">
               {user ? (
                 <>
-                  <Link to="/profile" className="nav-link" onClick={closeMenu}>
-                    <FaUser className="nav-icon" /> Profile
-                  </Link>
-                  <button onClick={handleLogout} className="nav-link mobile-logout-btn">
-                    <FaSignOutAlt className="nav-icon" /> Logout
-                  </button>
+                  <Link to="/profile" className="nav-link" onClick={closeMenu}><FaUser className="nav-icon" /> Profile</Link>
+                  <button onClick={handleLogout} className="nav-link mobile-logout-btn"><FaSignOutAlt className="nav-icon" /> Logout</button>
                 </>
               ) : (
                 <div className="mobile-auth-btns">
@@ -127,22 +175,47 @@ const Navbar = ({ user, setUser }) => {
           </div>
         </div>
 
-        <form className="nav-search-form" onSubmit={handleNavSearch}>
-          <div className="nav-search-container">
-            <input 
-              type="text" 
-              className="nav-search-input" 
-              placeholder="Search..." 
+        {/* Search with history */}
+        <form className="nav-search-form" onSubmit={handleNavSearch} ref={searchRef}>
+          <div className="nav-search-container" style={{ position: 'relative' }}>
+            <input
+              type="text"
+              className="nav-search-input"
+              placeholder="Search..."
               value={navSearchQuery}
               onChange={(e) => setNavSearchQuery(e.target.value)}
+              onFocus={() => setShowHistory(true)}
+              autoComplete="off"
             />
-            <button type="submit" className="nav-search-btn">
-              <FaSearch />
-            </button>
+            <button type="submit" className="nav-search-btn"><FaSearch /></button>
+
+            {/* Search history dropdown */}
+            {showHistory && filteredHistory.length > 0 && (
+              <div className="search-history-dropdown">
+                <div className="search-history-header">
+                  <span>Recent Searches</span>
+                  <button type="button" onClick={clearHistory} className="search-history-clear">Clear all</button>
+                </div>
+                {filteredHistory.map((item, i) => (
+                  <div key={i} className="search-history-item" onClick={() => handleHistoryClick(item)}>
+                    <i className="fas fa-clock-rotate-left"></i>
+                    <span>{item}</span>
+                    <button type="button" onClick={(e) => removeHistory(item, e)} className="search-history-remove">
+                      <i className="fas fa-xmark"></i>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </form>
 
-        <div className="nav-auth desktop-auth">
+        <div className="nav-auth desktop-auth" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Theme toggle */}
+          <button onClick={toggleTheme} className="theme-toggle-btn" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+            <i className={`fas ${theme === 'dark' ? 'fa-sun' : 'fa-moon'}`}></i>
+          </button>
+
           {user ? (
             <div className="user-nav-actions">
               <Link to="/profile" className="profile-link">

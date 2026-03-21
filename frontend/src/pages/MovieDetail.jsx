@@ -5,6 +5,26 @@ import { getStreamingSearchLink } from '../utils/streamingLinks';
 import MovieCard from '../components/MovieCard';
 import Comments from '../components/Comments';
 
+const ShareButton = ({ title }) => {
+  const [copied, setCopied] = useState(false);
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try { await navigator.share({ title, url }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+  return (
+    <button className="btn-share" onClick={handleShare}>
+      <i className={`fas ${copied ? 'fa-check' : 'fa-share-nodes'}`}></i>
+      <span>{copied ? 'Copied!' : 'Share'}</span>
+    </button>
+  );
+};
+
 const MovieDetailSkeleton = () => (
   <div className="movie-detail-container">
     <div className="movie-hero skeleton" style={{ minHeight: '500px', opacity: 0.3 }}></div>
@@ -209,6 +229,8 @@ const MovieDetail = ({ user }) => {
                   <i className={`fas ${isInWatchlist ? 'fa-check' : 'fa-plus'}`}></i>
                   <span>{isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
                 </button>
+
+                <ShareButton title={details.title} />
               </div>
               
               {details.tagline && <p className="movie-tagline">"{details.tagline}"</p>}
