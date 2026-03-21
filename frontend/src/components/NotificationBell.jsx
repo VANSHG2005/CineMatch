@@ -9,11 +9,19 @@ const NotificationBell = ({ user }) => {
   const ref = useRef(null);
   const navigate = useNavigate();
 
+  const fetchNotifications = async () => {
+    try {
+      const res = await notificationsApi.getAll();
+      setNotifications(res.data.notifications || []);
+      setUnread(res.data.unread_count || 0);
+    } catch { /* silent fail */ }
+  };
+
   useEffect(() => {
     if (!user) return;
-    fetchNotifications();
-    // Poll every 2 minutes
-    const interval = setInterval(fetchNotifications, 2 * 60 * 1000);
+    const load = () => { fetchNotifications(); };
+    load();
+    const interval = setInterval(load, 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -22,14 +30,6 @@ const NotificationBell = ({ user }) => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await notificationsApi.getAll();
-      setNotifications(res.data.notifications || []);
-      setUnread(res.data.unread_count || 0);
-    } catch { /* silent fail */ }
-  };
 
   const markAllRead = async () => {
     await notificationsApi.markAllRead();
