@@ -2054,3 +2054,69 @@ body { background-color: var(--bg-color); color: var(--text-color); transition: 
   border-top:1px solid var(--border-color); 
   margin-top:20px; 
 }
+
+/* ── Watchlist button fixes for light theme ── */
+[data-theme="light"] .watchlist-item-wrapper button {
+  background: #f0f0f0;
+  border-color: #ddd;
+  color: #444;
+}
+[data-theme="light"] .watchlist-item-wrapper button:hover {
+  background: #e8e8e8;
+}
+[data-theme="light"] .watchlist-item-wrapper button i.fa-eye-slash {
+  color: #666;
+}
+
+/* ── Watchlist filter pills in light theme ── */
+[data-theme="light"] .profile-filter-pill,
+[data-theme="light"] [style*="border: 1px solid"],
+[data-theme="light"] button[style*="borderColor"] {
+  color: #333;
+}
+
+/* ── Person/Actor page text in light theme ── */
+[data-theme="light"] .person-info p,
+[data-theme="light"] .person-info [style*="color: #ccc"],
+[data-theme="light"] .person-info [style*="color:#ccc"],
+[data-theme="light"] .acting-credits [style*="color: #888"],
+[data-theme="light"] .acting-credits [style*="color:#888"],
+[data-theme="light"] .acting-credits [style*="color: #aaa"],
+[data-theme="light"] [style*="lineHeight: '1.6'"],
+[data-theme="light"] [style*="color: #ccc"] {
+  color: #333 !important;
+}
+[data-theme="light"] [style*="color: #aaa"] {
+  color: #555 !important;
+}
+[data-theme="light"] [style*="color: #888"] {
+  color: #555 !important;
+}
+[data-theme="light"] [style*="color: #666"] {
+  color: #444 !important;
+}
+[data-theme="light"] [style*="borderBottom: '1px solid #222'"] {
+  border-color: #e0e0e0 !important;
+}
+
+/* ── Navbar search bar pill shape in light theme ── */
+[data-theme="light"] .nav-search-container input,
+[data-theme="light"] .nav-search-input {
+  background: #f0f0f0;
+  color: #111;
+  border-color: #ddd;
+}
+[data-theme="light"] .nav-search-btn {
+  background: #111;
+  color: #fff;
+}
+
+/* ── Global light theme text safety net ── */
+[data-theme="light"] p,
+[data-theme="light"] span,
+[data-theme="light"] div {
+  --fallback-muted: #555;
+}
+[data-theme="light"] .content-title { color: #111; }
+[data-theme="light"] .section-title { color: #111; }
+[data-theme="light"] .genre-browse-container { color: #111; }
