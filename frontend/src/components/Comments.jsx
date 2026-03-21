@@ -6,7 +6,7 @@ const StarRating = ({ value, onChange, readonly = false }) => {
   const [hovered, setHovered] = useState(0);
   const display = readonly ? value : (hovered || value);
   return (
-    <div style={{ display: 'flex', gap: '3px' }}>
+    <div className="star-rating" style={{ display: 'flex', gap: '3px' }}>
       {[1, 2, 3, 4, 5].map(star => (
         <span
           key={star}
@@ -16,7 +16,7 @@ const StarRating = ({ value, onChange, readonly = false }) => {
           style={{
             cursor: readonly ? 'default' : 'pointer',
             fontSize: readonly ? '0.85rem' : '1.2rem',
-            color: star <= display ? '#f5c518' : 'var(--border-color, #333)',
+            color: star <= display ? '#f5c518' : '#444',
             transition: 'color 0.1s'
           }}
         >★</span>
