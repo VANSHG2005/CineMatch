@@ -2272,13 +2272,9 @@ body { background-color: var(--bg-color); color: var(--text-color); transition: 
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: #ccc; }
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #aaa; }
 
-/* ══════════════════════════════════════════════
-   PASTE AT BOTTOM OF frontend/src/index.css
-   ══════════════════════════════════════════════ */
-
 /* ── Star rating visibility fix ── */
 .star-rating span {
-  color: #444 !important; /* visible in dark theme when unselected */
+  color: #444 ; /* visible in dark theme when unselected */
   transition: color 0.15s, transform 0.15s;
 }
 .star-rating span:hover {
@@ -2287,12 +2283,8 @@ body { background-color: var(--bg-color); color: var(--text-color); transition: 
 
 /* Also fix inline star color for unselected stars in dark mode */
 [data-theme="dark"] span[style*="var(--border-color)"] {
-  color: #444 !important;
+  color: #444;
 }
-
-/* ══════════════════════════════════════════════
-   ANIMATIONS
-   ══════════════════════════════════════════════ */
 
 /* ── Page fade-in ── */
 .main-content {
