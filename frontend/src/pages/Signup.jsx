@@ -31,8 +31,10 @@ const Signup = ({ setUser }) => {
       setInfo(`We sent a 6-digit code to ${email}. Check your inbox (and spam folder).`);
       setStep('verify');
     } catch (err) {
-      // If backend doesn't have OTP yet, fall back to direct signup
-      if (err.response?.status === 404) {
+      // 404 = endpoint not deployed yet; 500 = mail config issue
+      // In both cases fall back to direct signup so users are never blocked
+      const status = err.response?.status;
+      if (status === 404 || status === 500) {
         try {
           const response = await authApi.signup(name, email, password);
           if (response.data.user) { setUser(response.data.user); navigate('/'); }
