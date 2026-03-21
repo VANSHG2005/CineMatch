@@ -404,14 +404,29 @@ def clear_watchlist():
 @login_required
 def delete_account():
     from flask_login import logout_user
+    from sqlalchemy import text
     user_id = current_user.id
+
+    # Log out BEFORE expunging so Flask-Login clears the session cookie
     logout_user()
-    # Delete all user data — cascade handles related rows
-    user = db.session.get(User, user_id)
-    if user:
-        db.session.delete(user)
+
+    try:
+        # Expunge all ORM-tracked objects so SQLAlchemy doesn't try to
+        # cascade nullify related rows when we commit raw SQL deletes
+        db.session.expunge_all()
+
+        # Delete in FK-safe order using raw SQL — bypasses ORM cascade issues
+        db.session.execute(text('DELETE FROM comments WHERE user_id = :uid'), {'uid': user_id})
+        db.session.execute(text('DELETE FROM watchlist_items WHERE user_id = :uid'), {'uid': user_id})
+        db.session.execute(text('DELETE FROM notifications WHERE user_id = :uid'), {'uid': user_id})
+        db.session.execute(text('DELETE FROM follows WHERE follower_id = :uid OR followed_id = :uid'), {'uid': user_id})
+        db.session.execute(text('DELETE FROM "user" WHERE id = :uid'), {'uid': user_id})
         db.session.commit()
-    return jsonify({'message': 'Account deleted'})
+        return jsonify({'message': 'Account deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Delete account error: {e}")
+        return jsonify({'error': 'Failed to delete account. Please try again.'}), 500
 
 # Watchlist Routes
 @api.route('/watchlist', methods=['GET'])
