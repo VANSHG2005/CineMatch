@@ -1,0 +1,44 @@
+# .github/workflows/rebuild_models.yml
+# Runs every Sunday at midnight — rebuilds and pushes fresh models to HuggingFace
+# Setup: add TMDB_API_KEY and HF_TOKEN as GitHub repository secrets
+
+name: Rebuild Recommendation Models
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'   # Every Sunday midnight UTC
+  workflow_dispatch:        # Also allows manual trigger from GitHub UI
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests pandas scikit-learn joblib rapidfuzz huggingface_hub tqdm
+
+      - name: Build movie model
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: python scripts/build_movie_model.py
+
+      - name: Build TV model
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: python scripts/build_tv_model.py
+
+      - name: Upload to HuggingFace
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python scripts/upload_to_hf.py
+
+      - name: Trigger Render redeploy
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -X POST "$RENDER_DEPLOY_HOOK"
