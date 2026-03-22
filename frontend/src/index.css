@@ -2467,3 +2467,235 @@ html { scroll-behavior: smooth; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ══════════════════════════════════════════════
+   LIGHT THEME FIXES — paste at bottom of index.css
+   ══════════════════════════════════════════════ */
+
+/* ── Navbar search bar ── */
+[data-theme="light"] .nav-search-container {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 30px;
+}
+[data-theme="light"] .nav-search-input {
+  background: transparent !important;
+  color: #111 !important;
+  border: none !important;
+}
+[data-theme="light"] .nav-search-input::placeholder { color: #999 !important; }
+[data-theme="light"] .nav-search-btn {
+  background: #111 !important;
+  color: #fff !important;
+  border-radius: 50%;
+}
+
+/* ── Auth cards (Login / Signup) ── */
+[data-theme="light"] .auth-container { background: var(--bg-color); }
+[data-theme="light"] .auth-card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+[data-theme="light"] .auth-title { color: #111; }
+[data-theme="light"] .auth-footer { color: #555; }
+[data-theme="light"] .auth-footer a { color: #e50914; }
+[data-theme="light"] .form-group label { color: #444; }
+[data-theme="light"] .form-input {
+  background: #f7f7f7 !important;
+  color: #111 !important;
+  border: 1px solid #ddd !important;
+}
+[data-theme="light"] .form-input:focus {
+  background: #fff !important;
+  border-color: #e50914 !important;
+}
+[data-theme="light"] .form-input::placeholder { color: #aaa !important; }
+[data-theme="light"] .btn-auth {
+  background: #e50914;
+  color: #fff;
+}
+[data-theme="light"] .error-message {
+  background: rgba(229,9,20,0.08);
+  color: #c0392b;
+  border: 1px solid rgba(229,9,20,0.2);
+}
+
+/* ── OTP input boxes ── */
+[data-theme="light"] input[id^="otp-"] {
+  background: #f7f7f7 !important;
+  color: #111 !important;
+  border-color: #ddd !important;
+}
+[data-theme="light"] input[id^="otp-"]:focus {
+  background: #fff !important;
+  border-color: #e50914 !important;
+  outline: none;
+}
+
+/* ── Signup info text ── */
+[data-theme="light"] .auth-card p { color: #555; }
+
+/* ── Login/Signup link at bottom ── */
+[data-theme="light"] .auth-footer p { color: #666; }
+
+/* ── Password strength bars ── */
+[data-theme="light"] .form-group [style*="border-color"] {
+  border-color: #ddd !important;
+}
+
+/* ── General text fixes ── */
+[data-theme="light"] .genre-browse-container { color: #111; }
+[data-theme="light"] .section-title { color: #111; }
+[data-theme="light"] .content-title { color: #111; }
+[data-theme="light"] .footer { background: #f5f5f5; color: #666; border-top: 1px solid #e0e0e0; }
+
+/* ── Dropdown menus ── */
+[data-theme="light"] .dropdown-menu {
+  background: #ffffff !important;
+  border: 1px solid #e0e0e0 !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+}
+[data-theme="light"] .dropdown-item { color: #111 !important; }
+[data-theme="light"] .dropdown-item:hover {
+  background: rgba(229,9,20,0.06) !important;
+  color: #e50914 !important;
+}
+[data-theme="light"] .dropdown-header { color: #999 !important; }
+[data-theme="light"] .dropdown-divider { border-color: #eee !important; }
+
+/* ── Nav links ── */
+[data-theme="light"] .nav-link { color: #111 !important; }
+[data-theme="light"] .nav-link:hover { color: #e50914 !important; }
+[data-theme="light"] .nav-logo { color: #e50914 !important; }
+
+/* ── Mobile menu ── */
+@media (max-width: 1100px) {
+  [data-theme="light"] .nav-menu.active {
+    background: rgba(255,255,255,0.98) !important;
+    border-top: 1px solid #eee;
+  }
+  [data-theme="light"] .mobile-logout-btn { color: #111 !important; }
+  [data-theme="light"] .mobile-auth-btns a { color: #111; }
+}
+
+/* ── Movie/TV hero section ── */
+[data-theme="light"] .movie-hero { filter: brightness(0.97); }
+[data-theme="light"] .movie-title { color: #fff; }
+[data-theme="light"] .movie-overview-text { color: #eee; }
+
+/* ── Cards and backgrounds ── */
+[data-theme="light"] .image-placeholder {
+  background: #e8e8e8 !important;
+  color: #999 !important;
+}
+[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, #e8e8e8 25%, #f5f5f5 50%, #e8e8e8 75%) !important;
+  background-size: 200% 100% !important;
+}
+
+/* ── Comments section ── */
+[data-theme="light"] .form-input[placeholder="Share your thoughts..."] {
+  background: #fff !important;
+  color: #111 !important;
+  border-color: #ddd !important;
+}
+
+/* ── Profile fields ── */
+[data-theme="light"] .profile-field-display {
+  background: #f7f7f7 !important;
+  color: #111 !important;
+  border-color: #ddd !important;
+}
+[data-theme="light"] .profile-action-btn {
+  background: #f7f7f7 !important;
+  border-color: #e0e0e0 !important;
+  color: #333 !important;
+}
+[data-theme="light"] .profile-action-btn:hover { border-color: #e50914 !important; }
+
+/* ── Scrollbar ── */
+[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f0f0; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #ccc; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+/* ══════════════════════════════════════════════
+   MOBILE NAVBAR FIXES
+   ══════════════════════════════════════════════ */
+
+/* Logo size on mobile */
+@media (max-width: 600px) {
+  .nav-logo img {
+    height: 28px !important;
+  }
+
+  /* Show theme toggle and condensed auth on mobile in the top bar */
+  .mobile-top-actions {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Hide desktop auth but show mobile top actions */
+  .desktop-auth {
+    display: none !important;
+  }
+
+  /* Search hidden on mobile — it's in hamburger menu instead */
+  .nav-search-form {
+    display: none !important;
+  }
+
+  /* Hamburger button color fix for light theme */
+  .mobile-menu-toggle {
+    color: var(--text-color) !important;
+  }
+
+  /* Mobile menu panel light theme */
+  [data-theme="light"] .nav-menu {
+    background-color: #ffffff !important;
+    border-right: 1px solid #e0e0e0 !important;
+  }
+
+  [data-theme="light"] .nav-link {
+    border-bottom-color: #f0f0f0 !important;
+    color: #111 !important;
+  }
+
+  [data-theme="light"] .nav-item-dropdown .dropdown-menu {
+    background-color: #f9f9f9 !important;
+  }
+
+  [data-theme="light"] .mobile-menu-toggle {
+    color: #111 !important;
+  }
+}
+
+/* Compact nav container on mobile */
+@media (max-width: 600px) {
+  .nav-container {
+    padding: 0 16px !important;
+    gap: 10px !important;
+  }
+}
+
+/* Mobile menu light theme (applies at all mobile widths) */
+@media (max-width: 1100px) {
+  [data-theme="light"] .nav-menu {
+    background-color: #ffffff;
+    border-right: 1px solid #e0e0e0;
+  }
+  [data-theme="light"] .nav-link {
+    border-bottom-color: #f0f0f0;
+    color: #111;
+  }
+  [data-theme="light"] .nav-item-dropdown .dropdown-menu {
+    background-color: #f5f5f5;
+  }
+  [data-theme="light"] .mobile-menu-toggle {
+    color: #111;
+  }
+  [data-theme="light"] .dropdown-item {
+    color: #111;
+  }
+}

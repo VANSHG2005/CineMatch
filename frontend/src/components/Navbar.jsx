@@ -236,6 +236,20 @@ const Navbar = ({ user, setUser }) => {
           )}
         </div>
 
+        {/* Mobile top bar — theme toggle + auth icon always visible */}
+        <div className="mobile-top-actions" style={{ display: 'none', alignItems: 'center', gap: '8px' }}>
+          <button onClick={toggleTheme} className="theme-toggle-btn" title="Toggle theme">
+            <i className={`fas ${theme === 'dark' ? 'fa-sun' : 'fa-moon'}`}></i>
+          </button>
+          {user ? (
+            <Link to="/profile" onClick={closeMenu}>
+              <UserAvatar name={user.name} src={user.profile_pic} size="small" />
+            </Link>
+          ) : (
+            <Link to="/login" className="btn-login" onClick={closeMenu} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>Login</Link>
+          )}
+        </div>
+
         <button className="mobile-menu-toggle" onClick={toggleMobileMenu}>
           {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
         </button>
