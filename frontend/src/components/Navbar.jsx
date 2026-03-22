@@ -117,7 +117,7 @@ const Navbar = ({ user, setUser }) => {
   return (
     <nav className={`navbar ${isMobileMenuOpen ? 'mobile-active' : ''}`}>
       <div className="nav-container">
-        <Link to="/" className="nav-logo" onClick={closeMenu}>CineMatch</Link>
+        <Link to="/" className="nav-logo" onClick={closeMenu}><img src="/logo.svg" alt="CineMatch" style={{ height: "38px", display: "block" }} /></Link>
 
         <div className={`nav-menu ${isMobileMenuOpen ? 'active' : ''}`}>
           <div className="nav-links">
