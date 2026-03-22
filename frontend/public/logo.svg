@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 56">
   <!-- Film strip icon -->
   <rect x="0" y="0" width="44" height="56" rx="6" fill="#e50914"/>
   <rect x="3" y="6"  width="7" height="9" rx="2" fill="#0a0a0a"/>
@@ -8,7 +8,7 @@
   <rect x="34" y="22" width="7" height="9" rx="2" fill="#0a0a0a"/>
   <rect x="34" y="38" width="7" height="9" rx="2" fill="#0a0a0a"/>
   <polygon points="16,16 16,40 36,28" fill="white"/>
-  <!-- Wordmark -->
-  <text x="54" y="40" font-family="Georgia, serif" font-size="32" font-weight="700" fill="#e50914" letter-spacing="-0.5">Cine</text>
-  <text x="132" y="40" font-family="Georgia, serif" font-size="32" font-weight="700" fill="#ffffff" letter-spacing="-0.5">Match</text>
+  <!-- Wordmark — Cine in red, Match in currentColor for theme support -->
+  <text x="54" y="40" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#e50914" letter-spacing="-0.5">Cine</text>
+  <text x="129" y="40" font-family="Georgia, serif" font-size="30" font-weight="700" fill="currentColor" letter-spacing="-0.5">Match</text>
 </svg>
