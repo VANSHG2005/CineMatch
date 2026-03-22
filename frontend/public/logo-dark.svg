@@ -8,5 +8,5 @@
   <rect x="34" y="38" width="7" height="9" rx="2" fill="#0a0a0a"/>
   <polygon points="16,16 16,40 36,28" fill="white"/>
   <text x="54" y="40" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#e50914" letter-spacing="-0.5">Cine</text>
-  <text x="129" y="40" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#111111" letter-spacing="-0.5">Match</text>
+  <text x="129" y="40" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#ffffff" letter-spacing="-0.5">Match</text>
 </svg>
