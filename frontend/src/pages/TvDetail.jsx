@@ -4,6 +4,7 @@ import { tmdbApi, watchlistApi } from '../services/api';
 import { getStreamingSearchLink } from '../utils/streamingLinks';
 import MovieCard from '../components/MovieCard';
 import Comments from '../components/Comments';
+import PlaylistModal from '../components/PlaylistModal';
 
 const ShareButton = ({ title }) => {
   const [copied, setCopied] = useState(false);
@@ -73,6 +74,7 @@ const TvDetail = ({ user }) => {
   const [error, setError] = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
   const [showStreaming, setShowStreaming] = useState(false);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [loadedImages, setLoadedImages] = useState({});
   const imgUrl = 'https://image.tmdb.org/t/p/w500';
@@ -228,6 +230,14 @@ const TvDetail = ({ user }) => {
                   <span>{isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
                 </button>
 
+                <button 
+                  className="btn-watchlist not-in-watchlist"
+                  onClick={() => user ? setShowPlaylistModal(true) : alert('Please log in to use playlists')}
+                >
+                  <i className="fas fa-list-ul"></i>
+                  <span>Playlist</span>
+                </button>
+
                 <ShareButton title={details.name} />
               </div>
               
@@ -364,6 +374,13 @@ const TvDetail = ({ user }) => {
           </div>
         </div>
       )}
+
+      <PlaylistModal 
+        isOpen={showPlaylistModal} 
+        onClose={() => setShowPlaylistModal(false)} 
+        item={details} 
+        type="tv" 
+      />
     </div>
   );
 };
