@@ -2,6 +2,9 @@ from flask import Blueprint, jsonify, request, session, current_app
 from flask_login import login_user, logout_user, current_user, login_required
 from models.user import User, WatchlistItem, Comment, EpisodeProgress, db
 from services.tmdb_service import TMDBService
+from sqlalchemy import text
+
+api = Blueprint('api', __name__)
 
 @api.route('/shows/<int:show_id>/progress', methods=['GET'])
 @login_required
