@@ -11,7 +11,11 @@ const ShareButton = ({ title }) => {
   const handleShare = async () => {
     const url = window.location.href;
     if (navigator.share) {
-      try { await navigator.share({ title, url }); } catch {}
+      try {
+        await navigator.share({ title, url });
+      } catch (shareError) {
+        console.warn('Web share failed', shareError);
+      }
     } else {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -148,6 +152,7 @@ const MovieDetail = ({ user }) => {
   const details = movieData.details || {};
   const cast = movieData.cast || [];
   const crew = movieData.crew || [];
+  const director = crew.find(member => member.job === 'Director');
   const ml_recommendations = movieData.ml_recommendations || [];
   const api_similar = movieData.api_similar || [];
   const related_movies = movieData.related_movies || [];
@@ -203,6 +208,7 @@ const MovieDetail = ({ user }) => {
                 {details.release_date && <span className="meta-date">{details.release_date}</span>}
                 <span>{details.genres?.join(', ')}</span>
                 {details.runtime > 0 && <span>{details.runtime}m</span>}
+                {director && <span>Directed by {director.name}</span>}
               </div>
 
               <UserScore score={details.vote_average} />

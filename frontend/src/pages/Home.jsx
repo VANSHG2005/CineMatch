@@ -178,7 +178,7 @@ const Home = ({ user }) => {
     popular_movies: [],
     popular_tv: [],
     top_rated_movies: [],
-    upcoming_movies: [],
+    // upcoming_movies: [],
     indian_movies: []
   });
   const [loading, setLoading] = useState(true);
@@ -213,7 +213,7 @@ const Home = ({ user }) => {
       <ScrollableRow title="Popular Movies" items={data.popular_movies} type="movie" loading={loading} />
       <ScrollableRow title="Popular TV Shows" items={data.popular_tv} type="tv" loading={loading} />
       <ScrollableRow title="Top Rated Movies" items={data.top_rated_movies} type="movie" loading={loading} />
-      <ScrollableRow title="Upcoming Movies" items={data.upcoming_movies} type="movie" loading={loading} />
+      {/* <ScrollableRow title="Upcoming Movies" items={data.upcoming_movies} type="movie" loading={loading} /> */}
       <ScrollableRow title="Indian Hits" items={data.indian_movies} type="movie" loading={loading} />
     </div>
   );

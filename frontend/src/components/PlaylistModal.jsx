@@ -82,7 +82,7 @@ const PlaylistModal = ({ isOpen, onClose, item, type }) => {
           <div style={{ textAlign: 'center', padding: '20px' }}>
             <i className="fas fa-list-ul" style={{ fontSize: '3rem', color: '#333', marginBottom: '20px' }}></i>
             <p style={{ color: '#aaa', marginBottom: '25px' }}>You haven't created any playlists yet.</p>
-            <button className="btn-auth" onClick={() => { onClose(); navigate('/playlists'); }} style={{ width: '100%' }}>
+            <button className="btn-auth" onClick={() => { onClose(); alert('No playlists found. Use the top navigation Playlists page to create one.'); }} style={{ width: '100%' }}>
               Create a Playlist
             </button>
           </div>
@@ -128,7 +128,7 @@ const PlaylistModal = ({ isOpen, onClose, item, type }) => {
             ))}
             
             <button 
-              onClick={() => { onClose(); navigate('/playlists'); }}
+              onClick={() => { onClose(); alert('Use the Playlists page from the top nav to create a playlist.'); }}
               style={{ 
                 width: '100%', 
                 padding: '12px', 
