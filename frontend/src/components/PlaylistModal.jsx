@@ -71,7 +71,25 @@ const PlaylistModal = ({ isOpen, onClose, item, type }) => {
         <h2 style={{ marginBottom: '20px', fontSize: '1.5rem', textAlign: 'center', color: 'white' }}>Add to Playlist</h2>
         
         {error && <div className="error-message" style={{ marginBottom: '15px' }}>{error}</div>}
-        {success && <div style={{ background: 'rgba(0, 200, 83, 0.1)', color: '#00c853', padding: '10px', borderRadius: '4px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold' }}>{success}</div>}
+        {success && (
+          <div style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(0, 200, 83, 0.95)',
+            color: 'white',
+            padding: '12px 18px',
+            borderRadius: '8px',
+            zIndex: 9999,
+            minWidth: '240px',
+            textAlign: 'center',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+            fontWeight: 'bold'
+          }}>
+            {success}
+          </div>
+        )}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '30px' }}>
