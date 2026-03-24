@@ -58,10 +58,19 @@ def get_genre_content(content_type, genre_id):
 def init_data():
     trending_movies = TMDBService.fetch_trending('movie')
     trending_tv = TMDBService.fetch_trending('tv')
+    popular_movies = TMDBService.fetch_movies_by_category('popular')
+    popular_tv = TMDBService.fetch_tv_by_category('popular')
+    top_rated_movies = TMDBService.fetch_movies_by_category('top_rated')
+    upcoming_movies = TMDBService.fetch_movies_by_category('upcoming')
     indian_movies = TMDBService.fetch_indian_content('movie')
+    
     return jsonify({
         'trending_movies': trending_movies,
         'trending_tv': trending_tv,
+        'popular_movies': popular_movies,
+        'popular_tv': popular_tv,
+        'top_rated_movies': top_rated_movies,
+        'upcoming_movies': upcoming_movies,
         'indian_movies': indian_movies
     })
 

@@ -15,13 +15,27 @@ const SkeletonRow = () => (
   </div>
 );
 
-const Hero = ({ item, loading }) => {
-  if (loading || !item) {
+const HeroCarousel = ({ items, loading }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (loading || !items || items.length === 0 || isPaused) return;
+    
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % Math.min(items.length, 7));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [loading, items, isPaused]);
+
+  if (loading || !items || items.length === 0) {
     return (
       <div className="movie-hero skeleton" style={{ minHeight: '500px', opacity: 0.3, marginBottom: '40px' }}></div>
     );
   }
 
+  const item = items[currentIndex];
   const imgUrl = 'https://image.tmdb.org/t/p/original';
   const title = item.title || item.name;
   const year = (item.release_date || item.first_air_date || '').substring(0, 4);
@@ -33,14 +47,17 @@ const Hero = ({ item, loading }) => {
         backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url('${imgUrl}${item.backdrop_path}')`,
         marginBottom: '40px',
         borderRadius: '12px',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        position: 'relative'
       }}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
     >
       <div className="movie-hero-container">
         <div className="movie-hero-row" style={{ flexWrap: 'nowrap' }}>
           <div className="movie-info" style={{ textAlign: 'left' }}>
             <span style={{ background: 'var(--primary-color)', color: 'white', padding: '4px 12px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase', marginBottom: '15px', display: 'inline-block' }}>
-              #1 Trending Today
+              # {currentIndex + 1} Trending Today
             </span>
             <h1 className="movie-title" style={{ fontSize: '3.5rem', textShadow: '2px 2px 10px rgba(0,0,0,0.8)' }}>
               {title} {year && <span className="movie-year">({year})</span>}
@@ -59,6 +76,42 @@ const Hero = ({ item, loading }) => {
           </div>
         </div>
       </div>
+      
+      {/* Carousel Indicators */}
+      <div style={{ 
+        position: 'absolute', bottom: '20px', right: '40px', 
+        display: 'flex', gap: '8px', zIndex: 10 
+      }}>
+        {items.slice(0, 7).map((_, idx) => (
+          <button
+            key={idx}
+            onClick={() => setCurrentIndex(idx)}
+            style={{
+              width: idx === currentIndex ? '30px' : '10px',
+              height: '10px',
+              borderRadius: '5px',
+              border: 'none',
+              background: idx === currentIndex ? 'var(--primary-color)' : 'rgba(255,255,255,0.3)',
+              cursor: 'pointer',
+              transition: 'all 0.3s'
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Manual Controls */}
+      <button 
+        onClick={() => setCurrentIndex((prev) => (prev - 1 + Math.min(items.length, 7)) % Math.min(items.length, 7))}
+        style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.3)', border: 'none', color: 'white', padding: '15px 10px', borderRadius: '4px', cursor: 'pointer' }}
+      >
+        <i className="fas fa-chevron-left"></i>
+      </button>
+      <button 
+        onClick={() => setCurrentIndex((prev) => (prev + 1) % Math.min(items.length, 7))}
+        style={{ position: 'absolute', right: '20px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.3)', border: 'none', color: 'white', padding: '15px 10px', borderRadius: '4px', cursor: 'pointer' }}
+      >
+        <i className="fas fa-chevron-right"></i>
+      </button>
     </div>
   );
 };
@@ -122,6 +175,10 @@ const Home = ({ user }) => {
   const [data, setData] = useState({
     trending_movies: [],
     trending_tv: [],
+    popular_movies: [],
+    popular_tv: [],
+    top_rated_movies: [],
+    upcoming_movies: [],
     indian_movies: []
   });
   const [loading, setLoading] = useState(true);
@@ -147,12 +204,16 @@ const Home = ({ user }) => {
 
   return (
     <div className="genre-browse-container">
-      <Hero item={data.trending_movies?.[0]} loading={loading} />
+      <HeroCarousel items={data.trending_movies} loading={loading} />
       
       <ContinueWatchingRow user={user} />
       
       <ScrollableRow title="Trending Movies" items={data.trending_movies} type="movie" loading={loading} />
       <ScrollableRow title="Trending TV Shows" items={data.trending_tv} type="tv" loading={loading} />
+      <ScrollableRow title="Popular Movies" items={data.popular_movies} type="movie" loading={loading} />
+      <ScrollableRow title="Popular TV Shows" items={data.popular_tv} type="tv" loading={loading} />
+      <ScrollableRow title="Top Rated Movies" items={data.top_rated_movies} type="movie" loading={loading} />
+      <ScrollableRow title="Upcoming Movies" items={data.upcoming_movies} type="movie" loading={loading} />
       <ScrollableRow title="Indian Hits" items={data.indian_movies} type="movie" loading={loading} />
     </div>
   );
