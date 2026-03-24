@@ -203,7 +203,7 @@ def create_app():
             "http://127.0.0.1:5173"
          ],
          allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+         methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
     
     # Fire up the DB and Migrations
     db.init_app(app)
