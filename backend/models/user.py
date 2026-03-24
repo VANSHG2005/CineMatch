@@ -108,6 +108,30 @@ class ContinueWatching(db.Model):
             'last_watched': self.last_watched.isoformat()
         }
 
+class EpisodeProgress(db.Model):
+    __tablename__ = 'episode_progress'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
+    show_id    = db.Column(db.Integer, nullable=False)
+    season_number = db.Column(db.Integer, nullable=False)
+    episode_number = db.Column(db.Integer, nullable=False)
+    watched    = db.Column(db.Boolean, default=True)
+    watched_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('episode_progress', lazy='dynamic'))
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'show_id', 'season_number', 'episode_number', name='_user_episode_uc'),)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'show_id': self.show_id,
+            'season_number': self.season_number,
+            'episode_number': self.episode_number,
+            'watched': self.watched,
+            'watched_at': self.watched_at.isoformat()
+        }
 
 # ── Playlists ─────────────────────────────────────────────────────────────────
 import secrets as _secrets

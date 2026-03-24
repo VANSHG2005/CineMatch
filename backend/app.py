@@ -180,6 +180,26 @@ def _run_startup_migrations(app):
         db.session.rollback()
         print(f"[migration] follows skipped: {e}")
 
+    # Fix 13: episode_progress table
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS episode_progress (
+                id             SERIAL PRIMARY KEY,
+                user_id        VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                show_id        INTEGER NOT NULL,
+                season_number  INTEGER NOT NULL,
+                episode_number INTEGER NOT NULL,
+                watched        BOOLEAN DEFAULT TRUE,
+                watched_at     TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+                UNIQUE(user_id, show_id, season_number, episode_number)
+            );
+        """))
+        db.session.commit()
+        print("[migration] episode_progress table ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] episode_progress skipped: {e}")
+
     print("Startup migrations complete.")
 
 

@@ -1,136 +1,295 @@
 import { useState, useEffect } from 'react';
-import { continueWatchingApi } from '../services/api';
+import { api } from '../services/api';
 
-const EpisodeTracker = ({ show, user }) => {
-  const [tracking, setTracking] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [season, setSeason] = useState(1);
-  const [episode, setEpisode] = useState(1);
-  const [progress, setProgress] = useState(0);
-  const [open, setOpen] = useState(false);
+const ProgressBar = ({ current, total }) => {
+  const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+  return (
+    <div className="progress-container" style={{ margin: '20px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', fontWeight: '600' }}>
+        <span>Progress</span>
+        <span>{current} / {total} Episodes ({percentage}%)</span>
+      </div>
+      <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+        <div 
+          style={{ 
+            width: `${percentage}%`, 
+            height: '100%', 
+            background: 'var(--primary-color)', 
+            borderRadius: '4px',
+            transition: 'width 0.4s ease'
+          }} 
+        />
+      </div>
+    </div>
+  );
+};
 
-  const seasons = show?.seasons?.filter(s => s.season_number > 0) || [];
-  const currentSeason = seasons.find(s => s.season_number === season);
-  const maxEpisodes = currentSeason?.episode_count || 24;
+const EpisodeItem = ({ episode, isWatched, onToggle }) => {
+  return (
+    <div 
+      className="episode-item"
+      style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        padding: '12px 16px', 
+        background: isWatched ? 'rgba(229,9,20,0.05)' : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${isWatched ? 'rgba(229,9,20,0.2)' : 'rgba(255,255,255,0.05)'}`,
+        borderRadius: '8px',
+        marginBottom: '8px',
+        transition: 'all 0.2s'
+      }}
+    >
+      <div style={{ marginRight: '16px', color: 'var(--primary-color)', fontWeight: 'bold', width: '30px' }}>
+        {episode.episode_number}
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>{episode.name}</div>
+        <div style={{ fontSize: '0.8rem', color: '#888' }}>{episode.air_date}</div>
+      </div>
+      <button 
+        onClick={() => onToggle(episode.episode_number, !isWatched)}
+        style={{ 
+          background: isWatched ? 'var(--primary-color)' : 'transparent',
+          border: `2px solid ${isWatched ? 'var(--primary-color)' : '#444'}`,
+          color: isWatched ? 'white' : '#888',
+          width: '32px',
+          height: '32px',
+          borderRadius: '50%',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s'
+        }}
+      >
+        {isWatched ? <i className="fas fa-check"></i> : <i className="fas fa-plus"></i>}
+      </button>
+    </div>
+  );
+};
+
+const SeasonAccordion = ({ season, showId, watchedEpisodes, onToggleEpisode, onMarkSeason }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [seasonDetails, setSeasonDetails] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const seasonWatchedCount = watchedEpisodes.filter(e => e.season_number === season.season_number).length;
+  const isFullyWatched = seasonDetails && seasonWatchedCount >= seasonDetails.episodes.length;
 
   useEffect(() => {
-    if (!user) return;
-    continueWatchingApi.getAll().then(r => {
-      const found = (r.data || []).find(i => i.show_id === show.id);
-      if (found) {
-        setTracking(found);
-        setSeason(found.season_number);
-        setEpisode(found.episode_number);
-        setProgress(found.progress);
-      }
-    }).catch(() => {});
-  }, [user, show.id]);
+    if (isOpen && !seasonDetails) {
+      fetchSeasonDetails();
+    }
+  }, [isOpen]);
 
-  const handleSave = async () => {
-    if (!user) return;
-    setSaving(true);
+  const fetchSeasonDetails = async () => {
+    setLoading(true);
     try {
-      const res = await continueWatchingApi.update({
-        show_id: show.id,
-        show_name: show.name,
-        poster_path: show.poster_path,
-        season_number: season,
-        episode_number: episode,
-        episode_name: `Episode ${episode}`,
-        progress: progress
-      });
-      setTracking(res.data);
-    } catch (e) {
-      console.error(e);
+      const response = await api.get(`/tv/season/${showId}/${season.season_number}`);
+      setSeasonDetails(response.data);
+    } catch (err) {
+      console.error("Error fetching season details:", err);
     } finally {
-      setSaving(false);
-      setOpen(false);
+      setLoading(false);
     }
   };
 
-  const handleRemove = async () => {
-    await continueWatchingApi.remove(show.id);
-    setTracking(null);
-    setProgress(0);
+  return (
+    <div style={{ marginBottom: '12px', border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        style={{ 
+          padding: '16px 20px', 
+          background: 'var(--card-bg)', 
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{season.name}</div>
+          <div style={{ fontSize: '0.85rem', color: '#888' }}>
+            {seasonWatchedCount} / {season.episode_count} watched
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              if (seasonDetails) onMarkSeason(season.season_number, seasonDetails.episodes.map(ep => ep.episode_number));
+            }}
+            style={{ 
+              background: 'transparent', 
+              border: '1px solid var(--primary-color)', 
+              color: 'var(--primary-color)',
+              padding: '4px 12px',
+              borderRadius: '4px',
+              fontSize: '0.75rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              opacity: isFullyWatched ? 0.5 : 1
+            }}
+          >
+            Mark Season
+          </button>
+          <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'}`} style={{ color: '#666' }}></i>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div style={{ padding: '20px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid var(--border-color)' }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <i className="fas fa-spinner fa-spin" style={{ color: 'var(--primary-color)' }}></i>
+            </div>
+          ) : seasonDetails ? (
+            <div className="episodes-list">
+              {seasonDetails.episodes.map(ep => (
+                <EpisodeItem 
+                  key={ep.id} 
+                  episode={ep} 
+                  isWatched={watchedEpisodes.some(we => we.season_number === season.season_number && we.episode_number === ep.episode_number)}
+                  onToggle={(epNum, watched) => onToggleEpisode(season.season_number, epNum, watched)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: '#888', textAlign: 'center' }}>Failed to load episodes.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const EpisodeTracker = ({ show, user }) => {
+  const [watchedEpisodes, setWatchedEpisodes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user && show) {
+      fetchProgress();
+    }
+  }, [show.id, user]);
+
+  const fetchProgress = async () => {
+    try {
+      const response = await api.get(`/shows/${show.id}/progress`);
+      setWatchedEpisodes(response.data);
+    } catch (err) {
+      console.error("Error fetching progress:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!user) return null;
+  const handleToggleEpisode = async (seasonNum, epNum, watched) => {
+    if (!user) return alert('Please log in to track episodes');
+    
+    // Optimistic UI
+    const original = [...watchedEpisodes];
+    if (watched) {
+      setWatchedEpisodes([...watchedEpisodes, { season_number: seasonNum, episode_number: epNum }]);
+    } else {
+      setWatchedEpisodes(watchedEpisodes.filter(e => !(e.season_number === seasonNum && e.episode_number === epNum)));
+    }
+
+    try {
+      if (watched) {
+        await api.post('/episodes/mark-watched', { 
+          show_id: show.id, 
+          season_number: seasonNum, 
+          episode_number: epNum 
+        });
+      } else {
+        await api.post('/episodes/mark-unwatched', { 
+          show_id: show.id, 
+          season_number: seasonNum, 
+          episode_number: epNum 
+        });
+      }
+    } catch (err) {
+      setWatchedEpisodes(original);
+      alert('Failed to update progress');
+    }
+  };
+
+  const handleMarkSeason = async (seasonNum, epNums) => {
+    if (!user) return alert('Please log in to track episodes');
+    
+    const newWatched = epNums.map(epNum => ({ season_number: seasonNum, episode_number: epNum }));
+    const filtered = watchedEpisodes.filter(e => e.season_number !== seasonNum);
+    setWatchedEpisodes([...filtered, ...newWatched]);
+
+    try {
+      await api.post('/season/mark-all', {
+        show_id: show.id,
+        season_number: seasonNum,
+        episodes: epNums
+      });
+    } catch (err) {
+      fetchProgress();
+      alert('Failed to update progress');
+    }
+  };
+
+  const handleMarkAll = async () => {
+    if (!user) return alert('Please log in to track episodes');
+    if (!window.confirm('Mark all episodes as watched?')) return;
+
+    try {
+      const seasonsData = show.seasons.map(s => ({
+        season_number: s.season_number,
+        episodes: Array.from({ length: s.episode_count }, (_, i) => i + 1)
+      }));
+
+      await api.post('/show/mark-all', {
+        show_id: show.id,
+        seasons: seasonsData
+      });
+      fetchProgress();
+    } catch (err) {
+      alert('Failed to update progress');
+    }
+  };
+
+  if (!show || !show.seasons) return null;
+
+  const totalEpisodes = show.seasons.reduce((acc, s) => acc + (s.season_number > 0 ? s.episode_count : 0), 0);
+  const watchedCount = watchedEpisodes.length;
 
   return (
-    <div style={{ marginBottom: '20px' }}>
-      {tracking ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* Progress indicator */}
-          <div style={{ background: 'rgba(229,9,20,0.1)', border: '1px solid rgba(229,9,20,0.3)', borderRadius: '8px', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '200px' }}>
-            <i className="fas fa-play-circle" style={{ color: '#e50914', fontSize: '1.2rem' }}></i>
-            <div>
-              <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-color)' }}>
-                Watching S{tracking.season_number}E{tracking.episode_number}
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{Math.round(tracking.progress)}% through episode</div>
-            </div>
-            {/* Mini progress bar */}
-            <div style={{ flex: 1, height: '4px', background: 'var(--border-color)', borderRadius: '2px', minWidth: '60px' }}>
-              <div style={{ height: '100%', width: `${tracking.progress}%`, background: '#e50914', borderRadius: '2px' }} />
-            </div>
-          </div>
-          <button onClick={() => setOpen(o => !o)} style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 14px', color: 'var(--text-color)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600' }}>
-            <i className="fas fa-pen" style={{ marginRight: '6px' }}></i>Update
+    <div className="episode-tracker" style={{ marginTop: '40px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <h2 className="section-title" style={{ margin: 0 }}>Episode Tracking</h2>
+        {user && (
+          <button 
+            onClick={handleMarkAll}
+            className="btn-auth"
+            style={{ width: 'auto', padding: '8px 16px', fontSize: '0.85rem' }}
+          >
+            Mark All as Watched
           </button>
-          <button onClick={handleRemove} style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px', color: 'var(--text-muted)', cursor: 'pointer' }}>
-            <i className="fas fa-xmark"></i>
-          </button>
-        </div>
-      ) : (
-        <button onClick={() => setOpen(o => !o)} className="btn-watchlist not-in-watchlist" style={{ fontSize: '0.88rem' }}>
-          <i className="fas fa-play"></i>
-          <span>Track Progress</span>
-        </button>
-      )}
+        )}
+      </div>
 
-      {/* Expanded tracker panel */}
-      {open && (
-        <div style={{ marginTop: '12px', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px' }}>
-          <h4 style={{ margin: '0 0 16px', fontSize: '0.95rem', color: 'var(--text-color)' }}>
-            <i className="fas fa-bookmark" style={{ color: '#e50914', marginRight: '8px' }}></i>
-            Update Watch Progress
-          </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-            <div>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>Season</label>
-              <select value={season} onChange={e => { setSeason(Number(e.target.value)); setEpisode(1); }}
-                className="form-input" style={{ padding: '8px', fontSize: '0.9rem' }}>
-                {seasons.length > 0
-                  ? seasons.map(s => <option key={s.season_number} value={s.season_number}>Season {s.season_number}</option>)
-                  : Array.from({ length: show.number_of_seasons || 5 }, (_, i) => (
-                    <option key={i+1} value={i+1}>Season {i+1}</option>
-                  ))
-                }
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>Episode</label>
-              <select value={episode} onChange={e => setEpisode(Number(e.target.value))}
-                className="form-input" style={{ padding: '8px', fontSize: '0.9rem' }}>
-                {Array.from({ length: maxEpisodes }, (_, i) => (
-                  <option key={i+1} value={i+1}>Episode {i+1}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>Progress {Math.round(progress)}%</label>
-              <input type="range" min="0" max="100" value={progress} onChange={e => setProgress(Number(e.target.value))}
-                style={{ width: '100%', marginTop: '8px', accentColor: '#e50914' }} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={handleSave} disabled={saving} className="btn-auth" style={{ width: 'auto', padding: '8px 20px' }}>
-              {saving ? 'Saving...' : 'Save Progress'}
-            </button>
-            <button onClick={() => setOpen(false)} style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 16px', color: 'var(--text-muted)', cursor: 'pointer' }}>Cancel</button>
-          </div>
-        </div>
-      )}
+      <ProgressBar current={watchedCount} total={totalEpisodes} />
+
+      <div className="seasons-container" style={{ marginTop: '25px' }}>
+        {show.seasons
+          .filter(s => s.season_number > 0)
+          .map(season => (
+            <SeasonAccordion 
+              key={season.id} 
+              season={season} 
+              showId={show.id}
+              watchedEpisodes={watchedEpisodes}
+              onToggleEpisode={handleToggleEpisode}
+              onMarkSeason={handleMarkSeason}
+            />
+          ))}
+      </div>
     </div>
   );
 };

@@ -1,7 +1,137 @@
 from flask import Blueprint, jsonify, request, session, current_app
 from flask_login import login_user, logout_user, current_user, login_required
-from models.user import User, WatchlistItem, Comment, db
+from models.user import User, WatchlistItem, Comment, EpisodeProgress, db
 from services.tmdb_service import TMDBService
+
+@api.route('/shows/<int:show_id>/progress', methods=['GET'])
+@login_required
+def get_show_progress(show_id):
+    progress = EpisodeProgress.query.filter_by(user_id=current_user.id, show_id=show_id, watched=True).all()
+    return jsonify([p.to_dict() for p in progress])
+
+@api.route('/episodes/mark-watched', methods=['POST'])
+@login_required
+def mark_episode_watched():
+    data = request.json
+    show_id = data.get('show_id')
+    season_number = data.get('season_number')
+    episode_number = data.get('episode_number')
+    
+    if not all([show_id, season_number, episode_number]):
+        return jsonify({'error': 'Missing data'}), 400
+        
+    prog = EpisodeProgress.query.filter_by(
+        user_id=current_user.id, 
+        show_id=show_id, 
+        season_number=season_number, 
+        episode_number=episode_number
+    ).first()
+    
+    if not prog:
+        prog = EpisodeProgress(
+            user_id=current_user.id,
+            show_id=show_id,
+            season_number=season_number,
+            episode_number=episode_number,
+            watched=True
+        )
+        db.session.add(prog)
+    else:
+        prog.watched = True
+        prog.watched_at = db.session.execute(text('NOW()')).scalar() # Use DB time
+        
+    db.session.commit()
+    return jsonify(prog.to_dict())
+
+@api.route('/episodes/mark-unwatched', methods=['POST'])
+@login_required
+def mark_episode_unwatched():
+    data = request.json
+    show_id = data.get('show_id')
+    season_number = data.get('season_number')
+    episode_number = data.get('episode_number')
+    
+    prog = EpisodeProgress.query.filter_by(
+        user_id=current_user.id, 
+        show_id=show_id, 
+        season_number=season_number, 
+        episode_number=episode_number
+    ).first()
+    
+    if prog:
+        db.session.delete(prog)
+        db.session.commit()
+        
+    return jsonify({'message': 'Marked unwatched'})
+
+@api.route('/season/mark-all', methods=['POST'])
+@login_required
+def mark_season_watched():
+    data = request.json
+    show_id = data.get('show_id')
+    season_number = data.get('season_number')
+    episodes = data.get('episodes', []) # List of episode numbers
+    
+    for ep_num in episodes:
+        prog = EpisodeProgress.query.filter_by(
+            user_id=current_user.id, 
+            show_id=show_id, 
+            season_number=season_number, 
+            episode_number=ep_num
+        ).first()
+        if not prog:
+            prog = EpisodeProgress(
+                user_id=current_user.id,
+                show_id=show_id,
+                season_number=season_number,
+                episode_number=ep_num,
+                watched=True
+            )
+            db.session.add(prog)
+        else:
+            prog.watched = True
+            
+    db.session.commit()
+    return jsonify({'message': 'Season marked watched'})
+
+@api.route('/show/mark-all', methods=['POST'])
+@login_required
+def mark_show_watched():
+    data = request.json
+    show_id = data.get('show_id')
+    seasons = data.get('seasons', []) # List of {season_number, episodes: [ep_nums]}
+    
+    for s in seasons:
+        s_num = s.get('season_number')
+        eps = s.get('episodes', [])
+        for ep_num in eps:
+            prog = EpisodeProgress.query.filter_by(
+                user_id=current_user.id, 
+                show_id=show_id, 
+                season_number=s_num, 
+                episode_number=ep_num
+            ).first()
+            if not prog:
+                prog = EpisodeProgress(
+                    user_id=current_user.id,
+                    show_id=show_id,
+                    season_number=s_num,
+                    episode_number=ep_num,
+                    watched=True
+                )
+                db.session.add(prog)
+            else:
+                prog.watched = True
+                
+    db.session.commit()
+    return jsonify({'message': 'Show marked watched'})
+
+@api.route('/tv/season/<int:show_id>/<int:season_number>', methods=['GET'])
+def get_tv_season_details(show_id, season_number):
+    details = TMDBService.get_season_details(show_id, season_number)
+    if not details:
+        return jsonify({'error': 'Season not found'}), 404
+    return jsonify(details)
 from services.recommendation_service import recommendation_service
 from utils.genres import get_genres_dict
 import uuid

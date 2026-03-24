@@ -5,6 +5,7 @@ import { getStreamingSearchLink } from '../utils/streamingLinks';
 import MovieCard from '../components/MovieCard';
 import Comments from '../components/Comments';
 import PlaylistModal from '../components/PlaylistModal';
+import EpisodeTracker from '../components/EpisodeTracker';
 
 const ShareButton = ({ title }) => {
   const [copied, setCopied] = useState(false);
@@ -259,6 +260,8 @@ const TvDetail = ({ user }) => {
       </div>
 
       <div className="container" style={{ padding: '40px 4%', maxWidth: '1200px', margin: '0 auto' }}>
+        <EpisodeTracker show={details} user={user} />
+
         {seasons && seasons.length > 0 && (
           <section style={{ marginBottom: '50px' }}>
             <h2 className="section-title">Seasons</h2>

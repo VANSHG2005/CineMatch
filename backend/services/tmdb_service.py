@@ -115,6 +115,19 @@ class TMDBService:
             return None
 
     @staticmethod
+    def get_season_details(tv_id, season_number):
+        api_key = TMDBService.get_api_key()
+        try:
+            url = f"https://api.themoviedb.org/3/tv/{tv_id}/season/{season_number}?api_key={api_key}&language=en-US"
+            response = requests.get(url)
+            if response.status_code != 200:
+                return None
+            return response.json()
+        except Exception as e:
+            print(f"Error fetching season details: {e}")
+            return None
+
+    @staticmethod
     def fetch_trending(media_type, time_window='day'):
         api_key = TMDBService.get_api_key()
         try:
