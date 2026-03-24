@@ -139,8 +139,6 @@ from services.recommendation_service import recommendation_service
 from utils.genres import get_genres_dict
 import uuid
 
-api = Blueprint('api', __name__)
-
 @api.route('/genres', methods=['GET'])
 def get_genres():
     return jsonify(get_genres_dict())
