@@ -65,8 +65,8 @@ const PlaylistModal = ({ isOpen, onClose, item, type }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" style={{ display: 'flex' }} onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: '30px' }}>
+    <div className="modal-overlay" style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'flex-start', paddingTop: '80px' }} onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: '30px', margin: '0 auto' }}>
         <button className="modal-close-btn" onClick={onClose}><i className="fas fa-times"></i></button>
         <h2 style={{ marginBottom: '20px', fontSize: '1.5rem', textAlign: 'center', color: 'white' }}>Add to Playlist</h2>
         
