@@ -232,7 +232,10 @@ const TvDetail = ({ user }) => {
 
                 <button 
                   className="btn-watchlist not-in-watchlist"
-                  onClick={() => user ? setShowPlaylistModal(true) : alert('Please log in to use playlists')}
+                  onClick={() => {
+                    console.log("Playlist button clicked, user:", user);
+                    user ? setShowPlaylistModal(true) : alert('Please log in to use playlists');
+                  }}
                 >
                   <i className="fas fa-list-ul"></i>
                   <span>Playlist</span>
