@@ -160,6 +160,7 @@ const Navbar = ({ user, setUser }) => {
             <Link to="/recommend" className="nav-link" onClick={closeMenu}><FaMagic className="nav-icon" /> Recommend</Link>
             {user && <Link to="/watchlist" className="nav-link" onClick={closeMenu}><FaPlus className="nav-icon" /> Watchlist</Link>}
             {user && <Link to="/friends" className="nav-link" onClick={closeMenu}><i className="fas fa-user-group" style={{marginRight:'4px'}}></i> Friends</Link>}
+            {user && <Link to="/playlists" className="nav-link" onClick={closeMenu}><i className="fas fa-list" style={{marginRight:'4px'}}></i> Playlists</Link>}
 
             <div className="mobile-auth">
               {user ? (

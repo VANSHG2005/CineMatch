@@ -15,6 +15,8 @@ import Profile from './pages/Profile';
 import CategoryPage from './pages/CategoryPage';
 import GenrePage from './pages/GenrePage';
 import RecommendationPage from './pages/RecommendationPage';
+import PlaylistManager from './pages/PlaylistManager';
+import SharedPlaylist from './pages/SharedPlaylist';
 import FriendsPage from './pages/FriendsPage';
 import { authApi } from './services/api';
 
@@ -45,7 +47,7 @@ function App() {
           <Navbar user={user} setUser={setUser} />
           <main className="main-content">
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<Home user={user} />} />
               <Route path="/login" element={<Login setUser={setUser} />} />
               <Route path="/signup" element={<Signup setUser={setUser} />} />
               <Route path="/movie/:id" element={<MovieDetail user={user} />} />
@@ -58,6 +60,8 @@ function App() {
               <Route path="/genre/:type/:id" element={<GenrePage />} />
               <Route path="/recommend" element={<RecommendationPage />} />
             <Route path="/friends" element={<FriendsPage user={user} />} />
+            <Route path="/playlists" element={<PlaylistManager user={user} />} />
+            <Route path="/playlist/:shareId" element={<SharedPlaylist />} />
             </Routes>
           </main>
           <footer className="footer">

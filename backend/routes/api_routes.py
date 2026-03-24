@@ -906,3 +906,167 @@ def friend_watchlist(user_id):
         return jsonify({'error': 'You can only view watchlists of mutual friends'}), 403
     items = WatchlistItem.query.filter_by(user_id=user_id).order_by(WatchlistItem.added_on.desc()).all()
     return jsonify({'user': target.to_dict(), 'watchlist': [i.to_dict() for i in items]})
+
+# ══════════════════════════════════════════════════════════════════════
+# CONTINUE WATCHING
+# ══════════════════════════════════════════════════════════════════════
+ 
+from models.user import ContinueWatching, Playlist, PlaylistItem
+ 
+@api.route('/continue-watching', methods=['GET'])
+@login_required
+def get_continue_watching():
+    items = ContinueWatching.query.filter_by(user_id=current_user.id)\
+        .order_by(ContinueWatching.last_watched.desc()).limit(20).all()
+    return jsonify([i.to_dict() for i in items])
+ 
+@api.route('/continue-watching', methods=['POST'])
+@login_required
+def update_continue_watching():
+    data = request.json
+    show_id = data.get('show_id')
+    if not show_id:
+        return jsonify({'error': 'show_id required'}), 400
+ 
+    item = ContinueWatching.query.filter_by(
+        user_id=current_user.id, show_id=show_id
+    ).first()
+ 
+    if not item:
+        item = ContinueWatching(user_id=current_user.id, show_id=show_id)
+        db.session.add(item)
+ 
+    item.show_name     = data.get('show_name', '')
+    item.poster_path   = data.get('poster_path', '')
+    item.season_number = data.get('season_number', 1)
+    item.episode_number= data.get('episode_number', 1)
+    item.episode_name  = data.get('episode_name', '')
+    item.progress      = float(data.get('progress', 0))
+    item.last_watched  = datetime.utcnow()
+    db.session.commit()
+    return jsonify(item.to_dict())
+ 
+@api.route('/continue-watching/<int:show_id>', methods=['DELETE'])
+@login_required
+def remove_continue_watching(show_id):
+    item = ContinueWatching.query.filter_by(
+        user_id=current_user.id, show_id=show_id
+    ).first()
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+    return jsonify({'message': 'Removed'})
+ 
+ 
+# ══════════════════════════════════════════════════════════════════════
+# PLAYLISTS
+# ══════════════════════════════════════════════════════════════════════
+ 
+@api.route('/playlists', methods=['GET'])
+@login_required
+def get_playlists():
+    playlists = Playlist.query.filter_by(user_id=current_user.id)\
+        .order_by(Playlist.created_at.desc()).all()
+    return jsonify([p.to_dict() for p in playlists])
+ 
+@api.route('/playlists', methods=['POST'])
+@login_required
+def create_playlist():
+    data = request.json
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Playlist name is required'}), 400
+    playlist = Playlist(
+        user_id=current_user.id,
+        name=name,
+        description=data.get('description', ''),
+        is_public=bool(data.get('is_public', False))
+    )
+    db.session.add(playlist)
+    db.session.commit()
+    return jsonify(playlist.to_dict()), 201
+ 
+@api.route('/playlists/<int:playlist_id>', methods=['GET'])
+@login_required
+def get_playlist(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    if playlist.user_id != current_user.id and not playlist.is_public:
+        return jsonify({'error': 'Access denied'}), 403
+    return jsonify(playlist.to_dict(include_items=True))
+ 
+@api.route('/playlists/<int:playlist_id>', methods=['PUT'])
+@login_required
+def update_playlist(playlist_id):
+    playlist = Playlist.query.filter_by(id=playlist_id, user_id=current_user.id).first()
+    if not playlist:
+        return jsonify({'error': 'Not found'}), 404
+    data = request.json
+    if data.get('name'):
+        playlist.name = data['name'].strip()
+    if 'description' in data:
+        playlist.description = data['description']
+    if 'is_public' in data:
+        playlist.is_public = bool(data['is_public'])
+    db.session.commit()
+    return jsonify(playlist.to_dict())
+ 
+@api.route('/playlists/<int:playlist_id>', methods=['DELETE'])
+@login_required
+def delete_playlist(playlist_id):
+    playlist = Playlist.query.filter_by(id=playlist_id, user_id=current_user.id).first()
+    if not playlist:
+        return jsonify({'error': 'Not found'}), 404
+    db.session.delete(playlist)
+    db.session.commit()
+    return jsonify({'message': 'Deleted'})
+ 
+@api.route('/playlists/<int:playlist_id>/items', methods=['POST'])
+@login_required
+def add_to_playlist(playlist_id):
+    playlist = Playlist.query.filter_by(id=playlist_id, user_id=current_user.id).first()
+    if not playlist:
+        return jsonify({'error': 'Not found'}), 404
+    data = request.json
+    # Check duplicate
+    existing = PlaylistItem.query.filter_by(
+        playlist_id=playlist_id,
+        item_id=data['item_id'],
+        item_type=data['item_type']
+    ).first()
+    if existing:
+        return jsonify({'error': 'Already in playlist'}), 400
+    count = playlist.items.count()
+    item = PlaylistItem(
+        playlist_id=playlist_id,
+        item_id=data['item_id'],
+        item_type=data['item_type'],
+        title=data['title'],
+        poster_path=data.get('poster_path', ''),
+        position=count
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify(item.to_dict()), 201
+ 
+@api.route('/playlists/<int:playlist_id>/items/<int:item_id>', methods=['DELETE'])
+@login_required
+def remove_from_playlist(playlist_id, item_id):
+    playlist = Playlist.query.filter_by(id=playlist_id, user_id=current_user.id).first()
+    if not playlist:
+        return jsonify({'error': 'Not found'}), 404
+    item = PlaylistItem.query.filter_by(id=item_id, playlist_id=playlist_id).first()
+    if not item:
+        return jsonify({'error': 'Item not found'}), 404
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({'message': 'Removed'})
+ 
+# Public shared playlist — no login required
+@api.route('/playlist/share/<share_id>', methods=['GET'])
+def view_shared_playlist(share_id):
+    playlist = Playlist.query.filter_by(share_id=share_id).first()
+    if not playlist:
+        return jsonify({'error': 'Playlist not found'}), 404
+    if not playlist.is_public:
+        return jsonify({'error': 'This playlist is private'}), 403
+    return jsonify(playlist.to_dict(include_items=True))

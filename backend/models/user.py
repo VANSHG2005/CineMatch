@@ -63,7 +63,6 @@ class Comment(db.Model):
     text = db.Column(db.Text, nullable=False)
     rating = db.Column(db.SmallInteger, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    edited_at = db.Column(db.DateTime, nullable=True)
     
     user = db.relationship('User', backref=db.backref('comments', lazy=True))
 
@@ -74,43 +73,95 @@ class Comment(db.Model):
             'user_name': self.user.name if self.user else "Unknown User",
             'user_pic': self.user.profile_pic if self.user else "https://via.placeholder.com/150",
             'item_id': self.item_id,
-            'item_type': self.item_type,
             'text': self.text,
             'rating': self.rating,
-            'created_at': self.created_at.isoformat(),
-            'edited_at': self.edited_at.isoformat() if self.edited_at else None
+            'created_at': self.created_at.isoformat()
         }
 
-# ── Follow relationship (Feature 3: Friends) ──────────────────────────────────
-follows = db.Table('follows',
-    db.Column('follower_id', db.String(100), db.ForeignKey('user.id'), primary_key=True),
-    db.Column('followed_id', db.String(100), db.ForeignKey('user.id'), primary_key=True),
-    db.Column('created_at', db.DateTime, default=datetime.utcnow)
-)
+# ── Continue Watching ─────────────────────────────────────────────────────────
+class ContinueWatching(db.Model):
+    __tablename__ = 'continue_watching'
 
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
+    show_id    = db.Column(db.Integer, nullable=False)     # TMDB TV show id
+    show_name  = db.Column(db.String(200), nullable=False)
+    poster_path= db.Column(db.String(200))
+    season_number  = db.Column(db.Integer, default=1)
+    episode_number = db.Column(db.Integer, default=1)
+    episode_name   = db.Column(db.String(200))
+    progress   = db.Column(db.Float, default=0)  # 0-100 percent watched
+    last_watched = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Notification(db.Model):
-    __tablename__ = 'notifications'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
-    type = db.Column(db.String(30), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    body = db.Column(db.Text, nullable=False)
-    link = db.Column(db.String(300))
-    read = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('continue_watching', lazy='dynamic'))
 
     def to_dict(self):
         return {
             'id': self.id,
-            'type': self.type,
-            'title': self.title,
-            'body': self.body,
-            'link': self.link,
-            'read': self.read,
-            'created_at': self.created_at.isoformat()
+            'show_id': self.show_id,
+            'show_name': self.show_name,
+            'poster_path': self.poster_path,
+            'season_number': self.season_number,
+            'episode_number': self.episode_number,
+            'episode_name': self.episode_name,
+            'progress': self.progress,
+            'last_watched': self.last_watched.isoformat()
         }
-    
+
+
+# ── Playlists ─────────────────────────────────────────────────────────────────
+import secrets as _secrets
+
+class Playlist(db.Model):
+    __tablename__ = 'playlists'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    user_id     = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
+    name        = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    is_public   = db.Column(db.Boolean, default=False, nullable=False)
+    share_id    = db.Column(db.String(16), unique=True, nullable=False,
+                            default=lambda: _secrets.token_urlsafe(10))
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user  = db.relationship('User', backref=db.backref('playlists', lazy='dynamic'))
+    items = db.relationship('PlaylistItem', backref='playlist', lazy='dynamic',
+                            cascade='all, delete-orphan')
+
+    def to_dict(self, include_items=False):
+        d = {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'is_public': self.is_public,
+            'share_id': self.share_id,
+            'created_at': self.created_at.isoformat(),
+            'owner_name': self.user.name if self.user else '',
+            'item_count': self.items.count()
+        }
+        if include_items:
+            d['items'] = [i.to_dict() for i in self.items.order_by(PlaylistItem.position)]
+        return d
+
+
+class PlaylistItem(db.Model):
+    __tablename__ = 'playlist_items'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    playlist_id = db.Column(db.Integer, db.ForeignKey('playlists.id'), nullable=False)
+    item_id     = db.Column(db.Integer, nullable=False)
+    item_type   = db.Column(db.String(10), nullable=False)  # 'movie' or 'tv'
+    title       = db.Column(db.String(200), nullable=False)
+    poster_path = db.Column(db.String(200))
+    position    = db.Column(db.Integer, default=0)
+    added_at    = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'item_id': self.item_id,
+            'item_type': self.item_type,
+            'title': self.title,
+            'poster_path': self.poster_path,
+            'position': self.position
+        }

@@ -14,6 +14,7 @@ except ImportError:
 from extensions import mail
 import os
 
+
 def _run_startup_migrations(app):
     """
     Runs lightweight DB migrations on every startup.
@@ -72,7 +73,7 @@ def _run_startup_migrations(app):
         db.session.rollback()
         print(f"[migration] comments.rating skipped: {e}")
 
-    # Fix 4: Add watched column to watchlist_items
+    # Fix 4: Add watched column to watchlist_items (Feature 6 — watched toggle)
     try:
         db.session.execute(text('ALTER TABLE watchlist_items ADD COLUMN IF NOT EXISTS watched BOOLEAN NOT NULL DEFAULT FALSE;'))
         db.session.commit()
@@ -81,51 +82,68 @@ def _run_startup_migrations(app):
         db.session.rollback()
         print(f"[migration] watchlist_items.watched skipped: {e}")
 
-    # Fix 5: Add edited_at column to comments
-    try:
-        db.session.execute(text('ALTER TABLE comments ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP WITHOUT TIME ZONE;'))
-        db.session.commit()
-        print("[migration] comments.edited_at column ready.")
-    except Exception as e:
-        db.session.rollback()
-        print(f"[migration] comments.edited_at skipped: {e}")
 
-    # Fix 6: follows table (friend system)
+    # Fix 8: continue_watching table
     try:
         db.session.execute(text("""
-            CREATE TABLE IF NOT EXISTS follows (
-                follower_id VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-                followed_id VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-                created_at  TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
-                PRIMARY KEY (follower_id, followed_id)
+            CREATE TABLE IF NOT EXISTS continue_watching (
+                id             SERIAL PRIMARY KEY,
+                user_id        VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                show_id        INTEGER NOT NULL,
+                show_name      VARCHAR(200) NOT NULL,
+                poster_path    VARCHAR(200),
+                season_number  INTEGER DEFAULT 1,
+                episode_number INTEGER DEFAULT 1,
+                episode_name   VARCHAR(200),
+                progress       FLOAT DEFAULT 0,
+                last_watched   TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+                UNIQUE(user_id, show_id)
             );
         """))
         db.session.commit()
-        print("[migration] follows table ready.")
+        print("[migration] continue_watching table ready.")
     except Exception as e:
         db.session.rollback()
-        print(f"[migration] follows table skipped: {e}")
+        print(f"[migration] continue_watching skipped: {e}")
 
-    # Fix 7: notifications table
+    # Fix 9: playlists table
     try:
         db.session.execute(text("""
-            CREATE TABLE IF NOT EXISTS notifications (
-                id         SERIAL PRIMARY KEY,
-                user_id    VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-                type       VARCHAR(30) NOT NULL,
-                title      VARCHAR(200) NOT NULL,
-                body       TEXT NOT NULL,
-                link       VARCHAR(300),
-                read       BOOLEAN NOT NULL DEFAULT FALSE,
-                created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+            CREATE TABLE IF NOT EXISTS playlists (
+                id          SERIAL PRIMARY KEY,
+                user_id     VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                name        VARCHAR(200) NOT NULL,
+                description TEXT,
+                is_public   BOOLEAN NOT NULL DEFAULT FALSE,
+                share_id    VARCHAR(16) UNIQUE NOT NULL,
+                created_at  TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
             );
         """))
-        db.session.execute(text('CREATE INDEX IF NOT EXISTS ix_notifications_user ON notifications (user_id, read);'))
         db.session.commit()
-        print("[migration] notifications table ready.")
+        print("[migration] playlists table ready.")
     except Exception as e:
         db.session.rollback()
-        print(f"[migration] notifications table skipped: {e}")
+        print(f"[migration] playlists skipped: {e}")
+
+    # Fix 10: playlist_items table
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS playlist_items (
+                id          SERIAL PRIMARY KEY,
+                playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+                item_id     INTEGER NOT NULL,
+                item_type   VARCHAR(10) NOT NULL,
+                title       VARCHAR(200) NOT NULL,
+                poster_path VARCHAR(200),
+                position    INTEGER DEFAULT 0,
+                added_at    TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+            );
+        """))
+        db.session.commit()
+        print("[migration] playlist_items table ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] playlist_items skipped: {e}")
 
     print("Startup migrations complete.")
 
@@ -150,7 +168,7 @@ def create_app():
             "http://127.0.0.1:5173"
          ],
          allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
-         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
     
     # Fire up the DB and Migrations
     db.init_app(app)

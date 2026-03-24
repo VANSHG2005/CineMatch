@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { tmdbApi } from '../services/api';
 import MovieCard from '../components/MovieCard';
+import ContinueWatchingRow from '../components/ContinueWatchingRow';
 
 const SkeletonRow = () => (
   <div className="scrolling-row">
@@ -12,6 +14,54 @@ const SkeletonRow = () => (
     ))}
   </div>
 );
+
+const Hero = ({ item, loading }) => {
+  if (loading || !item) {
+    return (
+      <div className="movie-hero skeleton" style={{ minHeight: '500px', opacity: 0.3, marginBottom: '40px' }}></div>
+    );
+  }
+
+  const imgUrl = 'https://image.tmdb.org/t/p/original';
+  const title = item.title || item.name;
+  const year = (item.release_date || item.first_air_date || '').substring(0, 4);
+
+  return (
+    <div 
+      className="movie-hero" 
+      style={{ 
+        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url('${imgUrl}${item.backdrop_path}')`,
+        marginBottom: '40px',
+        borderRadius: '12px',
+        overflow: 'hidden'
+      }}
+    >
+      <div className="movie-hero-container">
+        <div className="movie-hero-row" style={{ flexWrap: 'nowrap' }}>
+          <div className="movie-info" style={{ textAlign: 'left' }}>
+            <span style={{ background: 'var(--primary-color)', color: 'white', padding: '4px 12px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase', marginBottom: '15px', display: 'inline-block' }}>
+              #1 Trending Today
+            </span>
+            <h1 className="movie-title" style={{ fontSize: '3.5rem', textShadow: '2px 2px 10px rgba(0,0,0,0.8)' }}>
+              {title} {year && <span className="movie-year">({year})</span>}
+            </h1>
+            <p className="movie-overview-text" style={{ maxWidth: '600px', margin: '20px 0 35px', textShadow: '1px 1px 4px rgba(0,0,0,0.8)' }}>
+              {item.overview?.length > 200 ? item.overview.substring(0, 200) + '...' : item.overview}
+            </p>
+            <div className="action-buttons">
+              <Link to={`/${item.media_type || 'movie'}/${item.id}`} className="btn-watch-now">
+                <i className="fas fa-play"></i> Watch Now
+              </Link>
+              <Link to={`/${item.media_type || 'movie'}/${item.id}`} className="btn-trailer" style={{ textDecoration: 'none' }}>
+                <i className="fas fa-info-circle"></i> More Info
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ScrollableRow = ({ title, items, type, loading }) => {
   const rowRef = useRef(null);
@@ -41,7 +91,7 @@ const ScrollableRow = ({ title, items, type, loading }) => {
   }, [items]);
 
   return (
-    <section className="movies-section" style={{ position: 'relative' }}>
+    <section className="movies-section" style={{ position: 'relative', marginBottom: '40px' }}>
       <h2 className="section-title">{title}</h2>
       <div style={{ position: 'relative' }}>
         {canScrollLeft && (
@@ -68,7 +118,7 @@ const ScrollableRow = ({ title, items, type, loading }) => {
   );
 };
 
-const Home = () => {
+const Home = ({ user }) => {
   const [data, setData] = useState({
     trending_movies: [],
     trending_tv: [],
@@ -97,6 +147,10 @@ const Home = () => {
 
   return (
     <div className="genre-browse-container">
+      <Hero item={data.trending_movies?.[0]} loading={loading} />
+      
+      <ContinueWatchingRow user={user} />
+      
       <ScrollableRow title="Trending Movies" items={data.trending_movies} type="movie" loading={loading} />
       <ScrollableRow title="Trending TV Shows" items={data.trending_tv} type="tv" loading={loading} />
       <ScrollableRow title="Indian Hits" items={data.indian_movies} type="movie" loading={loading} />

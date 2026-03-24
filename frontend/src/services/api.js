@@ -71,3 +71,22 @@ export const friendsApi = {
   unfollow: (userId) => api.delete(`/users/${userId}/unfollow`),
   getFriendWatchlist: (userId) => api.get(`/friends/${userId}/watchlist`),
 };
+
+// Continue Watching API
+export const continueWatchingApi = {
+  getAll: () => api.get('/continue-watching'),
+  update: (data) => api.post('/continue-watching', data),
+  remove: (showId) => api.delete(`/continue-watching/${showId}`),
+};
+
+// Playlists API
+export const playlistApi = {
+  getAll: () => api.get('/playlists'),
+  create: (data) => api.post('/playlists', data),
+  get: (id) => api.get(`/playlists/${id}`),
+  update: (id, data) => api.put(`/playlists/${id}`, data),
+  delete: (id) => api.delete(`/playlists/${id}`),
+  addItem: (playlistId, item) => api.post(`/playlists/${playlistId}/items`, item),
+  removeItem: (playlistId, itemId) => api.delete(`/playlists/${playlistId}/items/${itemId}`),
+  getShared: (shareId) => api.get(`/playlist/share/${shareId}`),
+};
