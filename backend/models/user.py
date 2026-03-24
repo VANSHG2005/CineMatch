@@ -112,6 +112,36 @@ class ContinueWatching(db.Model):
 # ── Playlists ─────────────────────────────────────────────────────────────────
 import secrets as _secrets
 
+# Association table for Followers
+follows = db.Table('follows',
+    db.Column('follower_id', db.String(100), db.ForeignKey('user.id'), primary_key=True),
+    db.Column('followed_id', db.String(100), db.ForeignKey('user.id'), primary_key=True)
+)
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
+    type       = db.Column(db.String(50))  # e.g., 'new_follower', 'playlist_shared'
+    title      = db.Column(db.String(200))
+    body       = db.Column(db.Text)
+    link       = db.Column(db.String(200))
+    read       = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic'))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'type': self.type,
+            'title': self.title,
+            'body': self.body,
+            'link': self.link,
+            'read': self.read,
+            'created_at': self.created_at.isoformat()
+        }
+
 class Playlist(db.Model):
     __tablename__ = 'playlists'
 

@@ -145,6 +145,41 @@ def _run_startup_migrations(app):
         db.session.rollback()
         print(f"[migration] playlist_items skipped: {e}")
 
+    # Fix 11: notifications table
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS notifications (
+                id         SERIAL PRIMARY KEY,
+                user_id    VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                type       VARCHAR(50),
+                title      VARCHAR(200),
+                body       TEXT,
+                link       VARCHAR(200),
+                read       BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+            );
+        """))
+        db.session.commit()
+        print("[migration] notifications table ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] notifications skipped: {e}")
+
+    # Fix 12: follows table
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS follows (
+                follower_id VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                followed_id VARCHAR(100) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                PRIMARY KEY (follower_id, followed_id)
+            );
+        """))
+        db.session.commit()
+        print("[migration] follows table ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[migration] follows skipped: {e}")
+
     print("Startup migrations complete.")
 
 
